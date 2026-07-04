@@ -3,9 +3,14 @@ rules_version = '2';
 // ============================================================
 // FIRESTORE SECURITY RULES
 //
-// Replace ADMIN_UID below with the same UID you pasted into
-// index.html's `ADMIN_UID` constant. This is the one account
-// that gets full read/write authority.
+// This app runs entirely on the free Spark plan — there is no Cloud
+// Storage bucket and no storage.rules file. Every file (photo, signature,
+// proof) is compressed client-side and stored as a Base64 string inside
+// the `values` map of the submission document itself.
+//
+// Firestore caps each document at 1MiB total, so keep each field's
+// "Max file size (KB)" small in the Form Builder (the app already
+// warns you, and does a client-side size check before writing).
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -14,7 +19,7 @@ service cloud.firestore {
       return request.auth != null;
     }
     function isAdmin() {
-      return isSignedIn() && request.auth.uid == "ADMIN_UID";
+      return isSignedIn() && request.auth.uid == "5R2061iDtwUIfXp1aacA378fhza2";
     }
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
@@ -36,7 +41,12 @@ service cloud.firestore {
     // Submissions: a customer can only read/create/update their OWN
     // submission document (its ID is their own uid). The Admin can
     // read and update (e.g. approve/reject) every submission.
+    // `values` holds both plain text answers AND Base64 image strings
+    // for document fields, all in one ordered map keyed by field id.
     match /user_submissions/{ownerUid} {
+      // Note: Firestore rules can't directly measure a document's total
+      // serialized byte size, so the 1MiB ceiling is enforced client-side
+      // (see the check in handleSubmitForm() in index.html) rather than here.
       allow read: if isOwner(ownerUid) || isAdmin();
       allow create: if isOwner(ownerUid);
       // Customers may keep editing their own submission's answers/files,

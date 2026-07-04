@@ -298,6 +298,8 @@ tr:last-child td{ border-bottom:none; }
 
 /* Auth screen */
 .auth-wrap{ max-width:400px; margin:8vh auto; }
+.auth-divider{ display:flex; align-items:center; gap:12px; margin:18px 0; color:var(--text-muted); font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em; }
+.auth-divider::before, .auth-divider::after{ content:''; flex:1; height:1px; background:var(--border); }
 .auth-switch{ text-align:center; font-size:0.86rem; color: var(--text-muted); margin-top:14px; }
 .auth-switch a{ font-weight:600; cursor:pointer; }
 
@@ -326,42 +328,40 @@ tr:last-child td{ border-bottom:none; }
 
 <script type="module">
 /* ============================================================
-   FIREBASE CONFIG
-   Replace with your own project's config (Project Settings → General → Your apps).
+   FIREBASE CONFIG (Spark / free-tier — no Cloud Storage used)
    ============================================================ */
- const firebaseConfig = {
-    apiKey: "AIzaSyDOdr6Zv0RgZBzPGvjMMea9WJ8tH62UT9s",
-    authDomain: "sirishastudio-41d56.firebaseapp.com",
-    projectId: "sirishastudio-41d56",
-    storageBucket: "sirishastudio-41d56.firebasestorage.app",
-    messagingSenderId: "430197596841",
-    appId: "1:430197596841:web:f46b36e1b07c2de727ffb8",
-    measurementId: "G-K3GB6LGVS3"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyDOdr6Zv0RgZBzPGvjMMea9WJ8tH62UT9s",
+  authDomain: "sirishastudio-41d56.firebaseapp.com",
+  projectId: "sirishastudio-41d56",
+  storageBucket: "sirishastudio-41d56.firebasestorage.app",
+  messagingSenderId: "430197596841",
+  appId: "1:430197596841:web:f46b36e1b07c2de727ffb8",
+  measurementId: "G-K3GB6LGVS3"
+};
 
-
-// The UID of the account that should have Admin rights.
-// After you create your first user in Firebase Auth, copy its UID here
-// AND into firestore.rules / storage.rules (see the isAdmin() helper there).
-const ADMIN_UID = "PASTE_YOUR_ADMIN_UID_HERE";
+// The one account with Admin rights. Must match firestore.rules' isAdmin().
+const ADMIN_UID = "5R2061iDtwUIfXp1aacA378fhza2";
+const ADMIN_EMAIL = "sirishastudio9@gmail.com";
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword,
-  createUserWithEmailAndPassword, signOut
+  createUserWithEmailAndPassword, signOut,
+  GoogleAuthProvider, signInWithPopup
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot,
   collection, query, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
-import {
-  getStorage, ref, uploadBytes, getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-storage.js";
+// NOTE: Firebase Cloud Storage is intentionally NOT used (requires the paid
+// Blaze plan). All files are compressed client-side and stored as Base64
+// strings directly inside Firestore documents instead — 100% free-tier.
 
 const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 const db = getFirestore(fbApp);
-const storage = getStorage(fbApp);
+const googleProvider = new GoogleAuthProvider();
 
 /* ============================================================
    GLOBAL STATE
@@ -373,7 +373,6 @@ const state = {
   template: null,          // currently loaded form_templates doc
   submissions: [],         // admin live feed
   mySubmission: null,      // customer's own submission doc
-  pendingFiles: {},        // fieldId -> { blob, previewUrl, mimeType }
   unsubscribers: []        // onSnapshot cleanup
 };
 
@@ -487,6 +486,19 @@ function renderAuth(){
             ${authMode === 'signin' ? 'Sign in' : 'Sign up'}
           </button>
         </form>
+
+        <div class="auth-divider"><span>or</span></div>
+
+        <button class="btn btn-ghost" id="google-signin-btn" style="width:100%;display:flex;gap:10px;">
+          <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.68-3.88 2.68-6.62z"/>
+            <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.98v2.33A9 9 0 0 0 9 18z"/>
+            <path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.68 9c0-.59.1-1.17.27-1.7V4.97H.98A9 9 0 0 0 0 9c0 1.45.35 2.83.98 4.03l2.97-2.33z"/>
+            <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 .98 4.97l2.97 2.33C4.66 5.17 6.65 3.58 9 3.58z"/>
+          </svg>
+          Continue with Google
+        </button>
+
         <div class="auth-switch">
           ${authMode === 'signin'
             ? `New here? <a id="auth-switch-link">Create an account</a>`
@@ -498,6 +510,18 @@ function renderAuth(){
   document.getElementById('auth-switch-link').addEventListener('click', () => {
     authMode = authMode === 'signin' ? 'signup' : 'signin';
     renderAuth();
+  });
+
+  document.getElementById('google-signin-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('google-signin-btn');
+    btn.disabled = true;
+    try {
+      await signInWithPopup(auth, googleProvider);
+      toast('Signed in with Google', 'success');
+    } catch (err) {
+      toast(err.message.replace('Firebase: ', ''), 'error');
+      btn.disabled = false;
+    }
   });
 
   document.getElementById('auth-form').addEventListener('submit', async (e) => {
@@ -571,8 +595,9 @@ function defaultFieldDefaults(type){
     return { id: uid(), type: 'text', label: 'Untitled field' };
   }
   return {
+    // Cropping is always free-style now (no fixed aspect ratio) — see openCropModal().
     id: uid(), type: 'document', label: 'Untitled document',
-    cropType: '1:1', maxSizeKB: 100, outputFormat: 'jpeg', targetWidth: 800
+    maxSizeKB: 60, outputFormat: 'jpeg', targetWidth: 700
   };
 }
 
@@ -701,15 +726,10 @@ function fieldBuilderRowHTML(f, i){
         <input class="input" data-field-prop="label" value="${escapeAttr(f.label)}">
       </div>
       ${isDoc ? `
+      <p style="font-size:0.78rem;color:var(--text-muted);margin:-4px 0 10px;">
+        Cropping is free-style — the user can drag the box to any size or shape. Keep max size small: this file is stored as text inside the submission document, and Firestore caps each document at 1MB total.
+      </p>
       <div class="grid grid-2">
-        <div class="field">
-          <label>Crop shape</label>
-          <select data-field-prop="cropType">
-            <option value="1:1" ${f.cropType==='1:1'?'selected':''}>1:1 Square (Photo)</option>
-            <option value="3:1" ${f.cropType==='3:1'?'selected':''}>3:1 Rectangle (Signature)</option>
-            <option value="free" ${f.cropType==='free'?'selected':''}>Free crop (Proof/Document)</option>
-          </select>
-        </div>
         <div class="field">
           <label>Output format</label>
           <select data-field-prop="outputFormat">
@@ -719,7 +739,7 @@ function fieldBuilderRowHTML(f, i){
         </div>
         <div class="field">
           <label>Max file size (KB)</label>
-          <input class="input" type="number" min="10" data-field-prop="maxSizeKB" value="${f.maxSizeKB}">
+          <input class="input" type="number" min="10" max="300" data-field-prop="maxSizeKB" value="${f.maxSizeKB}">
         </div>
         <div class="field">
           <label>Target width (px)</label>
@@ -832,17 +852,21 @@ function drawFeedTable(){
 }
 
 function rowHTML(sub){
+  // Every field — text AND document (as a Base64 data URL) — now lives in
+  // this single ordered `values` map, keyed by field id.
   const values = sub.values || {};
-  const files = sub.files || {};
   const status = sub.status || 'pending';
   const created = sub.createdAt?.toDate ? sub.createdAt.toDate().toLocaleString() : '—';
 
   const fieldCells = (builderDraft.fields || []).map(f => {
-    if (f.type === 'document'){
-      const file = files[f.id];
-      return `<td>${file ? `<a class="file-link" href="${file.url}" target="_blank" rel="noopener">View file ↗</a>` : '<span style="color:var(--text-muted)">—</span>'}</td>`;
-    }
     const val = values[f.id] || '';
+    if (f.type === 'document'){
+      return `<td>${val
+        ? `<a href="${val}" target="_blank" rel="noopener" title="Open full size">
+             <img src="${val}" style="max-width: 120px; max-height: 120px; object-fit: contain; border-radius: 6px; border: 1px solid #ccc;">
+           </a>`
+        : '<span style="color:var(--text-muted)">—</span>'}</td>`;
+    }
     return `<td><div class="copy-cell"><span class="val mono" title="${escapeAttr(val)}">${escapeAttr(val) || '—'}</span>
       ${val ? `<button class="btn btn-ghost btn-sm copy-btn" data-copy-value="${escapeAttr(val)}" title="Copy">⧉</button>` : ''}</div></td>`;
   }).join('');
@@ -936,7 +960,6 @@ function statusBadgeCustomer(status){
 function renderDynamicForm(){
   const container = document.getElementById('view-container');
   const t = state.template;
-  const files = state.mySubmission?.files || {};
 
   container.innerHTML = `
     <div class="card">
@@ -946,7 +969,7 @@ function renderDynamicForm(){
     </div>
     <div class="card">
       <form id="dyn-form">
-        ${t.fields.map(f => dynFieldHTML(f, files[f.id])).join('')}
+        ${t.fields.map(f => dynFieldHTML(f, customerDraft.values[f.id])).join('')}
         <button type="submit" class="btn btn-primary" id="submit-form-btn" style="width:100%;margin-top:8px;">
           ${state.mySubmission ? 'Update submission' : 'Submit'}
         </button>
@@ -972,7 +995,7 @@ function renderDynamicForm(){
   document.getElementById('dyn-form').addEventListener('submit', handleSubmitForm);
 }
 
-function dynFieldHTML(f, existingFile){
+function dynFieldHTML(f, existingValue){
   if (f.type === 'text'){
     return `
       <div class="field dyn-field">
@@ -980,17 +1003,18 @@ function dynFieldHTML(f, existingFile){
         <input class="input" id="field-${f.id}" placeholder="Enter ${escapeAttr(f.label).toLowerCase()}">
       </div>`;
   }
+  // Document field: existingValue, when present, is already a Base64 data URL.
   return `
     <div class="dyn-field">
       <label style="font-size:0.82rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px;">${escapeAttr(f.label)}</label>
-      <div class="doc-slot ${existingFile ? 'has-file' : ''}" id="slot-${f.id}">
-        ${existingFile ? `<img class="thumb" src="${existingFile.url}" alt="">` : `<div class="thumb"></div>`}
+      <div class="doc-slot ${existingValue ? 'has-file' : ''}" id="slot-${f.id}">
+        ${existingValue ? `<img class="thumb" src="${existingValue}" alt="">` : `<div class="thumb"></div>`}
         <div style="flex:1;min-width:160px;">
           <div class="doc-meta">
-            Crop: ${f.cropType} · Max ${f.maxSizeKB}KB · .${f.outputFormat}
+            Free crop · Max ${f.maxSizeKB}KB · .${f.outputFormat}
           </div>
           <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="document.getElementById('file-${f.id}').click()">
-            ${existingFile ? 'Replace file' : 'Choose file'}
+            ${existingValue ? 'Replace file' : 'Choose file'}
           </button>
         </div>
         <input type="file" id="file-${f.id}" accept="image/*" class="hidden">
@@ -1020,12 +1044,16 @@ function openCropModal(field, file){
     document.body.appendChild(overlay);
 
     const img = document.getElementById('crop-img');
-    const aspect = field.cropType === '1:1' ? 1 : field.cropType === '3:1' ? 3 : NaN;
+    // Free-style cropping: no fixed aspectRatio, so the user can freely drag
+    // every edge/corner of the crop box to fit any document shape or size.
     cropperInstance = new Cropper(img, {
-      aspectRatio: aspect,
+      aspectRatio: NaN,
       viewMode: 1,
       autoCropArea: 0.9,
-      background: false
+      background: false,
+      dragMode: 'move',
+      cropBoxResizable: true,
+      cropBoxMovable: true
     });
 
     document.getElementById('crop-cancel').addEventListener('click', closeCropModal);
@@ -1051,16 +1079,17 @@ async function confirmCrop(field){
   });
   const mimeType = field.outputFormat === 'png' ? 'image/png' : 'image/jpeg';
 
-  const blob = await compressCanvas(rawCanvas, mimeType, field.maxSizeKB);
-  if (!blob){
+  const dataUrl = await compressCanvasToDataURL(rawCanvas, mimeType, field.maxSizeKB);
+  if (!dataUrl){
     toast('Could not compress image to the required size', 'error');
     confirmBtn.disabled = false;
     confirmBtn.textContent = 'Use this crop';
     return;
   }
 
-  const previewUrl = URL.createObjectURL(blob);
-  state.pendingFiles[field.id] = { blob, previewUrl, mimeType, ext: mimeType === 'image/png' ? 'png' : 'jpg' };
+  // Store the finished Base64 string directly — this IS what gets saved to
+  // Firestore, no separate upload step needed.
+  customerDraft.values[field.id] = dataUrl;
 
   // Update the slot UI in place
   const slot = document.getElementById(`slot-${field.id}`);
@@ -1070,13 +1099,14 @@ async function confirmCrop(field){
     if (thumb.tagName === 'DIV'){
       const img = document.createElement('img');
       img.className = 'thumb';
-      img.src = previewUrl;
+      img.src = dataUrl;
       thumb.replaceWith(img);
     } else {
-      thumb.src = previewUrl;
+      thumb.src = dataUrl;
     }
     const meta = slot.querySelector('.doc-meta');
-    meta.innerHTML += `<br><span style="color:var(--success);">Ready — ${(blob.size/1024).toFixed(0)}KB</span>`;
+    const sizeKB = Math.round((dataUrl.length * 0.75) / 1024); // approx decoded size
+    meta.innerHTML = `Free crop · Max ${field.maxSizeKB}KB · .${field.outputFormat}<br><span style="color:var(--success);">Ready — ~${sizeKB}KB</span>`;
   }
 
   closeCropModal();
@@ -1084,39 +1114,35 @@ async function confirmCrop(field){
 }
 
 /**
- * Iteratively compresses a canvas's image data until it fits under maxSizeKB.
- * JPEG: reduce quality in steps. PNG: quality has no effect (lossless), so
- * progressively downscale dimensions instead.
+ * Iteratively compresses a canvas's image data, as a Base64 data URL, until
+ * it fits under maxSizeKB. JPEG: reduce quality in steps. PNG: quality has
+ * no effect (lossless), so progressively downscale dimensions instead.
+ * The size budget is checked against the data URL's own text length, since
+ * that's exactly what will be stored as a string inside the Firestore doc.
  */
-async function compressCanvas(sourceCanvas, mimeType, maxSizeKB){
-  const maxBytes = maxSizeKB * 1024;
+async function compressCanvasToDataURL(sourceCanvas, mimeType, maxSizeKB){
+  const maxChars = maxSizeKB * 1024;
   let canvas = sourceCanvas;
 
   if (mimeType === 'image/jpeg'){
     let quality = 0.92;
     for (let i = 0; i < 10; i++){
-      const blob = await canvasToBlob(canvas, mimeType, quality);
-      if (!blob) return null;
-      if (blob.size <= maxBytes || quality <= 0.12) return blob;
+      const dataUrl = canvas.toDataURL(mimeType, quality);
+      if (dataUrl.length <= maxChars || quality <= 0.12) return dataUrl;
       quality -= 0.1;
     }
-    return canvasToBlob(canvas, mimeType, 0.1);
+    return canvas.toDataURL(mimeType, 0.1);
   }
 
   // PNG path: downscale up to 6 times if still oversized.
   let scale = 1;
   for (let i = 0; i < 6; i++){
-    const blob = await canvasToBlob(canvas, mimeType);
-    if (!blob) return null;
-    if (blob.size <= maxBytes || scale <= 0.3) return blob;
+    const dataUrl = canvas.toDataURL(mimeType);
+    if (dataUrl.length <= maxChars || scale <= 0.3) return dataUrl;
     scale -= 0.15;
     canvas = scaleCanvas(sourceCanvas, scale);
   }
-  return canvasToBlob(canvas, mimeType);
-}
-
-function canvasToBlob(canvas, mimeType, quality){
-  return new Promise((resolve) => canvas.toBlob(resolve, mimeType, quality));
+  return canvas.toDataURL(mimeType);
 }
 
 function scaleCanvas(sourceCanvas, scale){
@@ -1130,26 +1156,26 @@ function scaleCanvas(sourceCanvas, scale){
 }
 
 /* ------------------------------------------------------------
-   SUBMIT: upload pending files + write Firestore doc
+   SUBMIT: write everything — text answers AND Base64 file strings —
+   directly into one Firestore document. No Storage, no uploads.
    ------------------------------------------------------------ */
 async function handleSubmitForm(e){
   e.preventDefault();
   const btn = document.getElementById('submit-form-btn');
   btn.disabled = true;
   const originalLabel = btn.textContent;
-  btn.innerHTML = `<span class="spinner"></span> Uploading…`;
+  btn.innerHTML = `<span class="spinner"></span> Saving…`;
 
   try {
     const uidStr = state.user.uid;
-    const files = { ...(state.mySubmission?.files || {}) };
 
-    for (const [fieldId, pending] of Object.entries(state.pendingFiles)){
-      const field = state.template.fields.find(f => f.id === fieldId);
-      const path = `submissions/${uidStr}/${sanitize(field.label)}_${Date.now()}.${pending.ext}`;
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, pending.blob, { contentType: pending.mimeType });
-      const url = await getDownloadURL(storageRef);
-      files[fieldId] = { url, path };
+    // Rough guard against Firestore's 1MiB-per-document ceiling before we
+    // even attempt the write, so the user gets a clear message instead of
+    // a cryptic Firestore error.
+    const approxDocBytes = JSON.stringify(customerDraft.values).length;
+    if (approxDocBytes > 950000){
+      toast('This submission is too large overall — lower a Max KB setting or ask the admin to.', 'error');
+      return;
     }
 
     await setDoc(doc(db, 'user_submissions', uidStr), {
@@ -1157,13 +1183,11 @@ async function handleSubmitForm(e){
       email: state.user.email,
       templateId: state.template.id,
       values: customerDraft.values,
-      files,
       status: 'pending',
       createdAt: state.mySubmission?.createdAt || serverTimestamp(),
       updatedAt: serverTimestamp()
     }, { merge: true });
 
-    state.pendingFiles = {};
     toast('Submission saved successfully', 'success');
   } catch (err){
     toast('Submission failed: ' + err.message, 'error');
@@ -1171,10 +1195,6 @@ async function handleSubmitForm(e){
     btn.disabled = false;
     btn.textContent = originalLabel;
   }
-}
-
-function sanitize(str){
-  return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
 /* ============================================================
@@ -1186,11 +1206,10 @@ onAuthStateChanged(auth, (user) => {
   // Reset per-session state on every auth change.
   templateLoadedOnce = false;
   customerDraft = { values: {} };
-  state.pendingFiles = {};
   if (feedUnsub){ feedUnsub(); feedUnsub = null; }
 
   state.user = user;
-  state.isAdmin = !!user && user.uid === ADMIN_UID;
+  state.isAdmin = !!user && (user.uid === ADMIN_UID || user.email === ADMIN_EMAIL);
   render();
 });
 </script>
