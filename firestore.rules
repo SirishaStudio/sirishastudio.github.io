@@ -1,0 +1,50 @@
+rules_version = '2';
+
+// ============================================================
+// FIRESTORE SECURITY RULES
+//
+// Replace ADMIN_UID below with the same UID you pasted into
+// index.html's `ADMIN_UID` constant. This is the one account
+// that gets full read/write authority.
+// ============================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn() && request.auth.uid == "ADMIN_UID";
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Form templates: any signed-in user can read (needed to render the
+    // dynamic form), but only the Admin can create/edit/delete them.
+    match /form_templates/{templateId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // App-wide settings (e.g. which template is currently active).
+    match /settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Submissions: a customer can only read/create/update their OWN
+    // submission document (its ID is their own uid). The Admin can
+    // read and update (e.g. approve/reject) every submission.
+    match /user_submissions/{ownerUid} {
+      allow read: if isOwner(ownerUid) || isAdmin();
+      allow create: if isOwner(ownerUid);
+      // Customers may keep editing their own submission's answers/files,
+      // but only the Admin may flip `status` between pending/approved/rejected.
+      allow update: if isAdmin() ||
+        (isOwner(ownerUid) &&
+         request.resource.data.status == resource.data.status);
+      allow delete: if isAdmin();
+    }
+  }
+}

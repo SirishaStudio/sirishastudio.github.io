@@ -1,13 +1,1198 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FormFlow — Dynamic Submission Portal</title>
+
+<!-- Fonts: Quicksand (display, rounded/friendly) + Inter (body, readable) + JetBrains Mono (data/ids) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Cropper.js for interactive image cropping -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+
+<style>
+/* ============================================================
+   THEME TOKENS — four switchable themes via [data-theme] + CSS vars
+   ============================================================ */
+:root, [data-theme="pastel"]{
+  --bg: #F3EEFB;
+  --bg-grad: radial-gradient(circle at 15% 0%, #EAE1FB 0%, #F3EEFB 45%, #F7F2FC 100%);
+  --surface: rgba(255,255,255,0.62);
+  --surface-solid: #FFFFFF;
+  --border: rgba(142,124,195,0.25);
+  --text: #362F52;
+  --text-muted: #756C93;
+  --primary: #8E7CC3;
+  --primary-ink: #FFFFFF;
+  --accent: #F6B8C6;
+  --accent-ink: #4A2A34;
+  --success: #6FBF9B;
+  --warning: #E5B45C;
+  --danger: #E07C7C;
+  --radius: 18px;
+  --radius-sm: 12px;
+  --shadow: 0 8px 30px rgba(120,100,180,0.18);
+  --blur: 18px;
+}
+[data-theme="cyberdark"]{
+  --bg: #0B0E1A;
+  --bg-grad: radial-gradient(circle at 85% 0%, #16213A 0%, #0B0E1A 55%, #080A12 100%);
+  --surface: rgba(255,255,255,0.045);
+  --surface-solid: #131826;
+  --border: rgba(94,234,212,0.22);
+  --text: #E6E9FB;
+  --text-muted: #8B93B8;
+  --primary: #5EEAD4;
+  --primary-ink: #04211D;
+  --accent: #F472B6;
+  --accent-ink: #34081E;
+  --success: #5EEAD4;
+  --warning: #F5D06F;
+  --danger: #FB7185;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow: 0 0 0 1px rgba(94,234,212,0.08), 0 12px 40px rgba(0,0,0,0.55);
+  --blur: 14px;
+}
+[data-theme="cream"]{
+  --bg: #FAF6EF;
+  --bg-grad: linear-gradient(180deg, #FCFAF5 0%, #FAF6EF 100%);
+  --surface: #FFFFFF;
+  --surface-solid: #FFFFFF;
+  --border: rgba(43,43,43,0.14);
+  --text: #2B2B2B;
+  --text-muted: #6B6458;
+  --primary: #2B2B2B;
+  --primary-ink: #FAF6EF;
+  --accent: #C9A15A;
+  --accent-ink: #FFFFFF;
+  --success: #6E8F5C;
+  --warning: #C9A15A;
+  --danger: #B25050;
+  --radius: 4px;
+  --radius-sm: 2px;
+  --shadow: 0 1px 0 rgba(43,43,43,0.08);
+  --blur: 0px;
+}
+[data-theme="cutepink"]{
+  --bg: #FFE9F3;
+  --bg-grad: radial-gradient(circle at 20% 100%, #FFD8EC 0%, #FFE9F3 50%, #FFF3F8 100%);
+  --surface: rgba(255,255,255,0.72);
+  --surface-solid: #FFFFFF;
+  --border: rgba(255,111,165,0.28);
+  --text: #5B2E43;
+  --text-muted: #9C6E82;
+  --primary: #FF6FA5;
+  --primary-ink: #FFFFFF;
+  --accent: #7ED9C0;
+  --accent-ink: #123F32;
+  --success: #7ED9C0;
+  --warning: #F0B860;
+  --danger: #E86A83;
+  --radius: 24px;
+  --radius-sm: 16px;
+  --shadow: 0 10px 32px rgba(255,111,165,0.22);
+  --blur: 20px;
+}
+
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  min-height:100vh;
+  background: var(--bg-grad);
+  color: var(--text);
+  font-family:'Inter', sans-serif;
+  transition: background 0.4s ease, color 0.4s ease;
+  -webkit-font-smoothing: antialiased;
+}
+h1,h2,h3,h4, .display{ font-family:'Quicksand', sans-serif; font-weight:700; letter-spacing:-0.01em; margin:0; }
+code, .mono{ font-family:'JetBrains Mono', monospace; }
+a{ color: var(--primary); }
+button{ font-family:'Inter', sans-serif; cursor:pointer; }
+::selection{ background: var(--accent); color: var(--accent-ink); }
+
+.hidden{ display:none !important; }
+
+/* Layout shells */
+.app-shell{ min-height:100vh; display:flex; flex-direction:column; }
+.topbar{
+  position:sticky; top:0; z-index:40;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding: 14px clamp(16px, 4vw, 36px);
+  background: var(--surface);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border-bottom: 1px solid var(--border);
+}
+.brand{ display:flex; align-items:center; gap:10px; }
+.brand-mark{
+  width:34px; height:34px; border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  display:flex; align-items:center; justify-content:center;
+  color: var(--primary-ink); font-family:'Quicksand',sans-serif; font-weight:700;
+  flex-shrink:0;
+}
+.brand-title{ font-size:1.05rem; }
+.brand-sub{ font-size:0.72rem; color: var(--text-muted); margin-top:-2px; }
+
+.topbar-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+.main{ flex:1; width:100%; max-width:1180px; margin:0 auto; padding: clamp(16px,4vw,32px); }
+
+/* Glass card */
+.card{
+  background: var(--surface);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: clamp(16px, 3vw, 26px);
+}
+.card + .card{ margin-top:18px; }
+
+.grid{ display:grid; gap:16px; }
+.grid-2{ grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); }
+
+/* Buttons */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  border:none; border-radius: var(--radius-sm);
+  padding: 10px 18px; font-size:0.92rem; font-weight:600;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  white-space:nowrap;
+}
+.btn:active{ transform: scale(0.97); }
+.btn-primary{ background: var(--primary); color: var(--primary-ink); }
+.btn-primary:hover{ box-shadow: 0 6px 18px rgba(0,0,0,0.14); }
+.btn-accent{ background: var(--accent); color: var(--accent-ink); }
+.btn-ghost{ background: transparent; color: var(--text); border:1px solid var(--border); }
+.btn-danger{ background: var(--danger); color:#fff; }
+.btn-success{ background: var(--success); color:#0a2a1f; }
+.btn-sm{ padding:6px 12px; font-size:0.8rem; border-radius: calc(var(--radius-sm) - 4px); }
+.btn:disabled{ opacity:0.5; cursor:not-allowed; transform:none; }
+.btn-icon{ padding:8px; border-radius:50%; }
+
+/* Inputs */
+.field{ margin-bottom:14px; display:flex; flex-direction:column; gap:6px; }
+.field label{ font-size:0.82rem; font-weight:600; color: var(--text-muted); }
+.input, select, textarea{
+  width:100%; padding:11px 14px; border-radius: var(--radius-sm);
+  border:1.5px solid var(--border); background: var(--surface-solid);
+  color: var(--text); font-size:0.95rem; font-family:'Inter',sans-serif;
+  transition: all 0.3s ease;
+}
+.input:focus, select:focus, textarea:focus{
+  outline:none; border-color: var(--primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+textarea{ resize: vertical; min-height:70px; }
+
+/* Badges */
+.badge{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:4px 11px; border-radius:999px; font-size:0.74rem; font-weight:600;
+  text-transform:uppercase; letter-spacing:0.03em;
+}
+.badge-dot{ width:7px; height:7px; border-radius:50%; }
+.badge-pending{ background: color-mix(in srgb, var(--warning) 20%, transparent); color: var(--warning); }
+.badge-pending .badge-dot{ background: var(--warning); }
+.badge-approved{ background: color-mix(in srgb, var(--success) 22%, transparent); color: var(--success); }
+.badge-approved .badge-dot{ background: var(--success); }
+.badge-rejected{ background: color-mix(in srgb, var(--danger) 20%, transparent); color: var(--danger); }
+.badge-rejected .badge-dot{ background: var(--danger); }
+.badge-dot.live{ animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse{ 0%,100%{ opacity:1; transform:scale(1);} 50%{ opacity:0.5; transform:scale(1.4);} }
+
+/* Theme picker */
+.theme-picker{ position:relative; }
+.theme-swatches{
+  display:none; position:absolute; right:0; top:calc(100% + 8px);
+  background: var(--surface-solid); border:1px solid var(--border); border-radius: var(--radius-sm);
+  padding:10px; box-shadow: var(--shadow); z-index:50; min-width:190px;
+}
+.theme-swatches.open{ display:flex; flex-direction:column; gap:4px; }
+.theme-opt{
+  display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px;
+  border:none; background:transparent; color:var(--text); font-size:0.85rem; text-align:left;
+}
+.theme-opt:hover{ background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.theme-opt.active{ font-weight:700; }
+.swatch{ width:18px; height:18px; border-radius:50%; flex-shrink:0; border:2px solid rgba(0,0,0,0.08); }
+
+/* Tabs */
+.tabs{ display:flex; gap:6px; margin-bottom:18px; flex-wrap:wrap; }
+.tab-btn{
+  padding:9px 16px; border-radius:999px; border:1.5px solid var(--border);
+  background: transparent; color: var(--text-muted); font-weight:600; font-size:0.88rem;
+}
+.tab-btn.active{ background: var(--primary); color: var(--primary-ink); border-color: transparent; }
+
+/* Form builder field cards */
+.fb-field{
+  border:1.5px dashed var(--border); border-radius: var(--radius-sm);
+  padding:14px; margin-bottom:12px; background: color-mix(in srgb, var(--surface-solid) 60%, transparent);
+}
+.fb-field-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
+.fb-field-head .tag{ font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); font-weight:700;}
+.fb-order-controls{ display:flex; gap:4px; }
+.order-num{
+  width:26px; height:26px; border-radius:50%; background: var(--primary); color:var(--primary-ink);
+  display:flex; align-items:center; justify-content:center; font-size:0.78rem; font-weight:700; flex-shrink:0;
+}
+
+/* Table (live feed) */
+.table-wrap{ overflow-x:auto; border-radius: var(--radius-sm); border:1px solid var(--border); }
+table{ width:100%; border-collapse: collapse; min-width:640px; }
+th, td{ padding:12px 14px; text-align:left; font-size:0.86rem; border-bottom:1px solid var(--border); vertical-align:top; }
+th{ background: color-mix(in srgb, var(--primary) 10%, transparent); font-family:'Quicksand',sans-serif; font-weight:700; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); position:sticky; top:0; }
+tr:last-child td{ border-bottom:none; }
+.copy-cell{ display:flex; align-items:center; gap:6px; }
+.copy-cell .val{ max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.file-link{ font-size:0.82rem; font-weight:600; }
+
+/* Dynamic customer form */
+.dyn-field{ margin-bottom:18px; }
+.doc-slot{
+  border:2px dashed var(--border); border-radius: var(--radius-sm); padding:16px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.doc-slot.has-file{ border-style:solid; border-color: var(--success); }
+.thumb{ width:64px; height:64px; border-radius:10px; object-fit:cover; background: var(--border); flex-shrink:0; }
+.doc-meta{ font-size:0.78rem; color:var(--text-muted); }
+
+/* Modal (crop) */
+.modal-overlay{
+  position:fixed; inset:0; background: rgba(10,10,20,0.55); backdrop-filter: blur(6px);
+  display:flex; align-items:center; justify-content:center; z-index:100; padding:16px;
+}
+.modal-box{
+  background: var(--surface-solid); border-radius: var(--radius); max-width:560px; width:100%;
+  padding:22px; box-shadow: var(--shadow); max-height:92vh; overflow:auto;
+}
+.crop-area{ max-height: 55vh; margin:14px 0; background:#111; border-radius: var(--radius-sm); overflow:hidden; }
+.crop-area img{ display:block; max-width:100%; }
+
+/* Spinner */
+.spinner{
+  width:16px; height:16px; border-radius:50%;
+  border:2.5px solid rgba(255,255,255,0.4); border-top-color: currentColor;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
+/* Toast */
+#toast-stack{ position:fixed; bottom:20px; right:20px; z-index:200; display:flex; flex-direction:column; gap:8px; max-width:320px;}
+.toast{
+  background: var(--surface-solid); border:1px solid var(--border); border-left:4px solid var(--primary);
+  border-radius: var(--radius-sm); padding:12px 16px; font-size:0.86rem; box-shadow: var(--shadow);
+  animation: toastIn 0.25s ease;
+}
+.toast.error{ border-left-color: var(--danger); }
+.toast.success{ border-left-color: var(--success); }
+@keyframes toastIn{ from{ opacity:0; transform: translateX(20px);} to{ opacity:1; transform:none; } }
+
+/* Auth screen */
+.auth-wrap{ max-width:400px; margin:8vh auto; }
+.auth-switch{ text-align:center; font-size:0.86rem; color: var(--text-muted); margin-top:14px; }
+.auth-switch a{ font-weight:600; cursor:pointer; }
+
+/* Empty state */
+.empty-state{ text-align:center; padding: 40px 16px; color: var(--text-muted); }
+.empty-state h3{ margin-bottom:6px; }
+
+/* Responsive */
+@media (max-width: 640px){
+  .topbar{ flex-wrap:wrap; }
+  .brand-sub{ display:none; }
+  th, td{ font-size:0.8rem; padding:10px; }
+}
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+}
+</style>
 </head>
-<body>
-    <nav>
-        <h1>Sirisha Studio</h1>
-    </nav>
+<body data-theme="pastel">
+
+<div id="toast-stack"></div>
+
+<div class="app-shell" id="app-root">
+  <!-- Rendered dynamically by app.js -->
+</div>
+
+<script type="module">
+/* ============================================================
+   FIREBASE CONFIG
+   Replace with your own project's config (Project Settings → General → Your apps).
+   ============================================================ */
+ const firebaseConfig = {
+    apiKey: "AIzaSyDOdr6Zv0RgZBzPGvjMMea9WJ8tH62UT9s",
+    authDomain: "sirishastudio-41d56.firebaseapp.com",
+    projectId: "sirishastudio-41d56",
+    storageBucket: "sirishastudio-41d56.firebasestorage.app",
+    messagingSenderId: "430197596841",
+    appId: "1:430197596841:web:f46b36e1b07c2de727ffb8",
+    measurementId: "G-K3GB6LGVS3"
+  };
+
+
+// The UID of the account that should have Admin rights.
+// After you create your first user in Firebase Auth, copy its UID here
+// AND into firestore.rules / storage.rules (see the isAdmin() helper there).
+const ADMIN_UID = "PASTE_YOUR_ADMIN_UID_HERE";
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+  createUserWithEmailAndPassword, signOut
+} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot,
+  collection, query, orderBy, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+import {
+  getStorage, ref, uploadBytes, getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-storage.js";
+
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+const storage = getStorage(fbApp);
+
+/* ============================================================
+   GLOBAL STATE
+   ============================================================ */
+const state = {
+  user: null,
+  isAdmin: false,
+  activeTemplateId: null,
+  template: null,          // currently loaded form_templates doc
+  submissions: [],         // admin live feed
+  mySubmission: null,      // customer's own submission doc
+  pendingFiles: {},        // fieldId -> { blob, previewUrl, mimeType }
+  unsubscribers: []        // onSnapshot cleanup
+};
+
+const root = document.getElementById('app-root');
+
+/* ============================================================
+   TOAST UTILITY
+   ============================================================ */
+function toast(message, type = 'info'){
+  const stack = document.getElementById('toast-stack');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = message;
+  stack.appendChild(el);
+  setTimeout(() => el.remove(), 3800);
+}
+
+/* ============================================================
+   THEME SYSTEM (persisted in localStorage)
+   ============================================================ */
+const THEMES = [
+  { id: 'pastel',    label: 'Light Pastel', swatch: '#8E7CC3' },
+  { id: 'cyberdark', label: 'Cyber Dark',   swatch: '#5EEAD4' },
+  { id: 'cream',     label: 'Minimal Cream',swatch: '#C9A15A' },
+  { id: 'cutepink',  label: 'Cute Pink',    swatch: '#FF6FA5' }
+];
+function applyTheme(themeId){
+  document.body.setAttribute('data-theme', themeId);
+  localStorage.setItem('formflow_theme', themeId);
+}
+function initTheme(){
+  applyTheme(localStorage.getItem('formflow_theme') || 'pastel');
+}
+function themePickerHTML(){
+  const current = localStorage.getItem('formflow_theme') || 'pastel';
+  return `
+    <div class="theme-picker">
+      <button class="btn btn-ghost btn-sm" id="theme-toggle-btn" title="Change theme">🎨 Theme</button>
+      <div class="theme-swatches" id="theme-swatches">
+        ${THEMES.map(t => `
+          <button class="theme-opt ${t.id === current ? 'active' : ''}" data-theme-id="${t.id}">
+            <span class="swatch" style="background:${t.swatch}"></span> ${t.label}
+          </button>`).join('')}
+      </div>
+    </div>`;
+}
+function wireThemePicker(){
+  const btn = document.getElementById('theme-toggle-btn');
+  const panel = document.getElementById('theme-swatches');
+  if (!btn) return;
+  btn.addEventListener('click', (e) => { e.stopPropagation(); panel.classList.toggle('open'); });
+  panel.querySelectorAll('.theme-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      applyTheme(opt.dataset.themeId);
+      panel.classList.remove('open');
+      render();
+    });
+  });
+  document.addEventListener('click', () => panel.classList.remove('open'), { once: true });
+}
+
+/* ============================================================
+   TOP BAR
+   ============================================================ */
+function topbarHTML(){
+  if (!state.user) return '';
+  return `
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">FF</div>
+        <div>
+          <div class="brand-title">FormFlow</div>
+          <div class="brand-sub">${state.isAdmin ? 'Admin workspace' : 'Submission portal'}</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        ${themePickerHTML()}
+        <span class="mono" style="font-size:0.78rem;color:var(--text-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${state.user.email}</span>
+        <button class="btn btn-ghost btn-sm" id="logout-btn">Sign out</button>
+      </div>
+    </header>`;
+}
+function wireTopbar(){
+  wireThemePicker();
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) logoutBtn.addEventListener('click', () => signOut(auth));
+}
+
+/* ============================================================
+   AUTH SCREEN (sign in / sign up)
+   ============================================================ */
+let authMode = 'signin';
+function renderAuth(){
+  root.innerHTML = `
+    <div class="main auth-wrap">
+      <div class="card">
+        <h2 style="margin-bottom:4px;">${authMode === 'signin' ? 'Welcome back' : 'Create your account'}</h2>
+        <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:20px;">
+          ${authMode === 'signin' ? 'Sign in to continue to FormFlow.' : 'Sign up to start your submission.'}
+        </p>
+        <form id="auth-form">
+          <div class="field">
+            <label>Email</label>
+            <input class="input" type="email" id="auth-email" required autocomplete="email">
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input class="input" type="password" id="auth-password" required minlength="6" autocomplete="current-password">
+          </div>
+          <button class="btn btn-primary" type="submit" style="width:100%;margin-top:6px;" id="auth-submit-btn">
+            ${authMode === 'signin' ? 'Sign in' : 'Sign up'}
+          </button>
+        </form>
+        <div class="auth-switch">
+          ${authMode === 'signin'
+            ? `New here? <a id="auth-switch-link">Create an account</a>`
+            : `Already have an account? <a id="auth-switch-link">Sign in</a>`}
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('auth-switch-link').addEventListener('click', () => {
+    authMode = authMode === 'signin' ? 'signup' : 'signin';
+    renderAuth();
+  });
+
+  document.getElementById('auth-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const btn = document.getElementById('auth-submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span> Please wait…`;
+    try {
+      if (authMode === 'signin') {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+      toast('Signed in successfully', 'success');
+    } catch (err) {
+      toast(err.message.replace('Firebase: ', ''), 'error');
+      btn.disabled = false;
+      btn.textContent = authMode === 'signin' ? 'Sign in' : 'Sign up';
+    }
+  });
+}
+
+/* ============================================================
+   ROOT RENDER DISPATCH
+   ============================================================ */
+function render(){
+  if (!state.user){
+    renderAuth();
+    return;
+  }
+  root.innerHTML = `${topbarHTML()}<div class="main" id="view-container"></div>`;
+  wireTopbar();
+  if (state.isAdmin){
+    renderAdminView();
+  } else {
+    renderCustomerView();
+  }
+}
+
+/* ============================================================
+   ADMIN VIEW
+   ============================================================ */
+let adminTab = 'builder';
+let builderDraft = { name: '', description: '', fields: [] };
+let builderLoaded = false;
+
+function uid(){ return crypto.randomUUID(); }
+
+async function loadBuilderDraft(){
+  const settingsSnap = await getDoc(doc(db, 'settings', 'app'));
+  const activeId = settingsSnap.exists() ? settingsSnap.data().activeTemplateId : null;
+  if (activeId){
+    const tSnap = await getDoc(doc(db, 'form_templates', activeId));
+    if (tSnap.exists()){
+      const data = tSnap.data();
+      builderDraft = {
+        id: activeId,
+        name: data.name || '',
+        description: data.description || '',
+        fields: (data.fields || []).sort((a,b) => a.order - b.order)
+      };
+    }
+  }
+  builderLoaded = true;
+}
+
+function defaultFieldDefaults(type){
+  if (type === 'text'){
+    return { id: uid(), type: 'text', label: 'Untitled field' };
+  }
+  return {
+    id: uid(), type: 'document', label: 'Untitled document',
+    cropType: '1:1', maxSizeKB: 100, outputFormat: 'jpeg', targetWidth: 800
+  };
+}
+
+function renderAdminView(){
+  const container = document.getElementById('view-container');
+  container.innerHTML = `
+    <div class="tabs">
+      <button class="tab-btn ${adminTab === 'builder' ? 'active' : ''}" data-tab="builder">🛠️ Form Builder</button>
+      <button class="tab-btn ${adminTab === 'feed' ? 'active' : ''}" data-tab="feed">📋 Live Submissions</button>
+    </div>
+    <div id="admin-tab-content"></div>`;
+
+  container.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      adminTab = btn.dataset.tab;
+      renderAdminView();
+    });
+  });
+
+  if (adminTab === 'builder'){
+    renderFormBuilder();
+  } else {
+    renderSubmissionsFeed();
+  }
+}
+
+async function renderFormBuilder(){
+  const content = document.getElementById('admin-tab-content');
+  if (!builderLoaded){
+    content.innerHTML = `<div class="card empty-state">Loading your form template…</div>`;
+    await loadBuilderDraft();
+  }
+
+  content.innerHTML = `
+    <div class="card">
+      <h3 style="margin-bottom:14px;">Tool details</h3>
+      <div class="grid grid-2">
+        <div class="field">
+          <label>Tool name</label>
+          <input class="input" id="b-name" value="${escapeAttr(builderDraft.name)}" placeholder="e.g. KYC Document Collection">
+        </div>
+        <div class="field">
+          <label>Description</label>
+          <input class="input" id="b-desc" value="${escapeAttr(builderDraft.description)}" placeholder="Short description shown to users">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <h3>Fields <span style="color:var(--text-muted);font-weight:500;font-size:0.85rem;">(rendered to users in this order)</span></h3>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" id="add-text-field">+ Text field</button>
+          <button class="btn btn-accent btn-sm" id="add-doc-field">+ Document field</button>
+        </div>
+      </div>
+      <div id="fb-fields-list">
+        ${builderDraft.fields.length ? builderDraft.fields.map((f,i) => fieldBuilderRowHTML(f,i)).join('') : `
+          <div class="empty-state"><h3>No fields yet</h3><p>Add a text or document field to get started.</p></div>`}
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:10px;">
+      <button class="btn btn-primary" id="save-template-btn">💾 Save & Publish Template</button>
+    </div>`;
+
+  document.getElementById('add-text-field').addEventListener('click', () => {
+    builderDraft.fields.push(defaultFieldDefaults('text'));
+    renderFormBuilder();
+  });
+  document.getElementById('add-doc-field').addEventListener('click', () => {
+    builderDraft.fields.push(defaultFieldDefaults('document'));
+    renderFormBuilder();
+  });
+  document.getElementById('save-template-btn').addEventListener('click', saveTemplate);
+
+  content.querySelectorAll('[data-field-prop]').forEach(el => {
+    el.addEventListener('input', (e) => {
+      const fid = el.closest('.fb-field').dataset.fieldId;
+      const field = builderDraft.fields.find(f => f.id === fid);
+      if (!field) return;
+      const prop = el.dataset.fieldProp;
+      field[prop] = (el.type === 'number') ? Number(el.value) : el.value;
+    });
+  });
+  content.querySelectorAll('.fb-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      builderDraft.fields = builderDraft.fields.filter(f => f.id !== btn.dataset.fieldId);
+      renderFormBuilder();
+    });
+  });
+  content.querySelectorAll('.fb-move-up').forEach(btn => {
+    btn.addEventListener('click', () => { moveField(btn.dataset.fieldId, -1); });
+  });
+  content.querySelectorAll('.fb-move-down').forEach(btn => {
+    btn.addEventListener('click', () => { moveField(btn.dataset.fieldId, 1); });
+  });
+}
+
+function moveField(fieldId, dir){
+  const idx = builderDraft.fields.findIndex(f => f.id === fieldId);
+  const target = idx + dir;
+  if (target < 0 || target >= builderDraft.fields.length) return;
+  const [item] = builderDraft.fields.splice(idx, 1);
+  builderDraft.fields.splice(target, 0, item);
+  renderFormBuilder();
+}
+
+function fieldBuilderRowHTML(f, i){
+  const isDoc = f.type === 'document';
+  return `
+    <div class="fb-field" data-field-id="${f.id}">
+      <div class="fb-field-head">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="order-num">${i+1}</span>
+          <span class="tag">${isDoc ? 'Document field' : 'Text field'}</span>
+        </div>
+        <div class="fb-order-controls">
+          <button class="btn btn-ghost btn-sm fb-move-up" data-field-id="${f.id}" title="Move up">↑</button>
+          <button class="btn btn-ghost btn-sm fb-move-down" data-field-id="${f.id}" title="Move down">↓</button>
+          <button class="btn btn-danger btn-sm fb-remove" data-field-id="${f.id}">Remove</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Field label</label>
+        <input class="input" data-field-prop="label" value="${escapeAttr(f.label)}">
+      </div>
+      ${isDoc ? `
+      <div class="grid grid-2">
+        <div class="field">
+          <label>Crop shape</label>
+          <select data-field-prop="cropType">
+            <option value="1:1" ${f.cropType==='1:1'?'selected':''}>1:1 Square (Photo)</option>
+            <option value="3:1" ${f.cropType==='3:1'?'selected':''}>3:1 Rectangle (Signature)</option>
+            <option value="free" ${f.cropType==='free'?'selected':''}>Free crop (Proof/Document)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Output format</label>
+          <select data-field-prop="outputFormat">
+            <option value="jpeg" ${f.outputFormat==='jpeg'?'selected':''}>Convert to .jpg</option>
+            <option value="png" ${f.outputFormat==='png'?'selected':''}>Convert to .png</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Max file size (KB)</label>
+          <input class="input" type="number" min="10" data-field-prop="maxSizeKB" value="${f.maxSizeKB}">
+        </div>
+        <div class="field">
+          <label>Target width (px)</label>
+          <input class="input" type="number" min="100" data-field-prop="targetWidth" value="${f.targetWidth}">
+        </div>
+      </div>` : ''}
+    </div>`;
+}
+
+function escapeAttr(str){
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+async function saveTemplate(){
+  const btn = document.getElementById('save-template-btn');
+  builderDraft.name = document.getElementById('b-name').value.trim();
+  builderDraft.description = document.getElementById('b-desc').value.trim();
+  if (!builderDraft.name){ toast('Please give your tool a name', 'error'); return; }
+  if (!builderDraft.fields.length){ toast('Add at least one field', 'error'); return; }
+
+  // Preserve sequence order explicitly as an `order` integer on every field.
+  builderDraft.fields.forEach((f,i) => { f.order = i; });
+
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Saving…`;
+  try {
+    const templateId = builderDraft.id || uid();
+    await setDoc(doc(db, 'form_templates', templateId), {
+      name: builderDraft.name,
+      description: builderDraft.description,
+      fields: builderDraft.fields,
+      updatedAt: serverTimestamp(),
+      createdAt: builderDraft.id ? (builderDraft.createdAt || serverTimestamp()) : serverTimestamp()
+    }, { merge: true });
+    await setDoc(doc(db, 'settings', 'app'), { activeTemplateId: templateId }, { merge: true });
+    builderDraft.id = templateId;
+    toast('Template saved and published', 'success');
+  } catch (err){
+    toast('Save failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '💾 Save & Publish Template';
+  }
+}
+
+/* ============================================================
+   ADMIN: LIVE SUBMISSIONS FEED
+   ============================================================ */
+let feedUnsub = null;
+
+function renderSubmissionsFeed(){
+  const content = document.getElementById('admin-tab-content');
+  content.innerHTML = `<div class="card"><div class="empty-state">Connecting to live feed…</div></div>`;
+
+  if (feedUnsub) feedUnsub();
+  const q = query(collection(db, 'user_submissions'), orderBy('createdAt', 'asc'));
+  feedUnsub = onSnapshot(q, (snap) => {
+    const rows = [];
+    snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+    state.submissions = rows;
+    drawFeedTable();
+  }, (err) => {
+    content.innerHTML = `<div class="card empty-state"><h3>Couldn't load submissions</h3><p>${err.message}</p></div>`;
+  });
+}
+
+function drawFeedTable(){
+  const content = document.getElementById('admin-tab-content');
+  if (!content) return; // user navigated away
+  const rows = state.submissions;
+  const fieldDefs = (builderDraft.fields || []);
+
+  if (!rows.length){
+    content.innerHTML = `<div class="card empty-state"><h3>No submissions yet</h3><p>Once users start filling out the form, they'll appear here in real time.</p></div>`;
+    return;
+  }
+
+  content.innerHTML = `
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Submitted</th>
+              <th>User</th>
+              ${fieldDefs.map(f => `<th>${escapeAttr(f.label)}</th>`).join('')}
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(rowHTML).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+
+  content.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(btn.dataset.copyValue || '');
+      toast('Copied to clipboard', 'success');
+    });
+  });
+  content.querySelectorAll('.approve-btn').forEach(btn => {
+    btn.addEventListener('click', () => patchStatus(btn.dataset.subId, 'approved'));
+  });
+  content.querySelectorAll('.reject-btn').forEach(btn => {
+    btn.addEventListener('click', () => patchStatus(btn.dataset.subId, 'rejected'));
+  });
+}
+
+function rowHTML(sub){
+  const values = sub.values || {};
+  const files = sub.files || {};
+  const status = sub.status || 'pending';
+  const created = sub.createdAt?.toDate ? sub.createdAt.toDate().toLocaleString() : '—';
+
+  const fieldCells = (builderDraft.fields || []).map(f => {
+    if (f.type === 'document'){
+      const file = files[f.id];
+      return `<td>${file ? `<a class="file-link" href="${file.url}" target="_blank" rel="noopener">View file ↗</a>` : '<span style="color:var(--text-muted)">—</span>'}</td>`;
+    }
+    const val = values[f.id] || '';
+    return `<td><div class="copy-cell"><span class="val mono" title="${escapeAttr(val)}">${escapeAttr(val) || '—'}</span>
+      ${val ? `<button class="btn btn-ghost btn-sm copy-btn" data-copy-value="${escapeAttr(val)}" title="Copy">⧉</button>` : ''}</div></td>`;
+  }).join('');
+
+  return `
+    <tr>
+      <td class="mono" style="font-size:0.78rem;">${created}</td>
+      <td>${escapeAttr(sub.email || sub.uid)}</td>
+      ${fieldCells}
+      <td>${statusBadge(status, true)}</td>
+      <td>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-success btn-sm approve-btn" data-sub-id="${sub.id}" ${status==='approved'?'disabled':''}>Approve</button>
+          <button class="btn btn-danger btn-sm reject-btn" data-sub-id="${sub.id}" ${status==='rejected'?'disabled':''}>Reject</button>
+        </div>
+      </td>
+    </tr>`;
+}
+
+function statusBadge(status, live){
+  const map = { pending: 'badge-pending', approved: 'badge-approved', rejected: 'badge-rejected' };
+  const cls = map[status] || 'badge-pending';
+  return `<span class="badge ${cls}"><span class="badge-dot ${live?'live':''}"></span>${status}</span>`;
+}
+
+async function patchStatus(subId, newStatus){
+  try {
+    await updateDoc(doc(db, 'user_submissions', subId), { status: newStatus, updatedAt: serverTimestamp() });
+    toast(`Marked as ${newStatus}`, 'success');
+  } catch (err){
+    toast('Update failed: ' + err.message, 'error');
+  }
+}
+
+/* ============================================================
+   CUSTOMER VIEW
+   ============================================================ */
+let customerDraft = { values: {} };
+let templateLoadedOnce = false;
+let cropperInstance = null;
+let activeCropFieldId = null;
+
+function renderCustomerView(){
+  const container = document.getElementById('view-container');
+  container.innerHTML = `<div class="card empty-state">Loading your form…</div>`;
+
+  // Subscribe to which template is active, then to that template's contents.
+  onSnapshot(doc(db, 'settings', 'app'), (settingsSnap) => {
+    const activeId = settingsSnap.exists() ? settingsSnap.data().activeTemplateId : null;
+    if (!activeId){
+      container.innerHTML = `<div class="card empty-state"><h3>No form available yet</h3><p>Please check back soon.</p></div>`;
+      return;
+    }
+    onSnapshot(doc(db, 'form_templates', activeId), (tSnap) => {
+      if (!tSnap.exists()) return;
+      const data = tSnap.data();
+      state.template = { id: activeId, name: data.name, description: data.description,
+        fields: (data.fields || []).slice().sort((a,b) => a.order - b.order) };
+      if (!templateLoadedOnce){
+        templateLoadedOnce = true;
+        subscribeToMySubmission();
+        renderDynamicForm();
+      }
+    });
+  });
+}
+
+function subscribeToMySubmission(){
+  onSnapshot(doc(db, 'user_submissions', state.user.uid), (snap) => {
+    state.mySubmission = snap.exists() ? snap.data() : null;
+    if (state.mySubmission?.values && Object.keys(customerDraft.values).length === 0){
+      customerDraft.values = { ...state.mySubmission.values };
+    }
+    updateStatusWidget();
+  });
+}
+
+function updateStatusWidget(){
+  const widget = document.getElementById('sync-status-widget');
+  if (!widget) return;
+  const status = state.mySubmission?.status;
+  widget.innerHTML = status
+    ? `Live status: ${statusBadgeCustomer(status)}`
+    : `Live status: <span class="badge badge-pending"><span class="badge-dot live"></span>not submitted yet</span>`;
+}
+function statusBadgeCustomer(status){
+  const map = { pending: 'badge-pending', approved: 'badge-approved', rejected: 'badge-rejected' };
+  return `<span class="badge ${map[status] || 'badge-pending'}"><span class="badge-dot live"></span>${status}</span>`;
+}
+
+function renderDynamicForm(){
+  const container = document.getElementById('view-container');
+  const t = state.template;
+  const files = state.mySubmission?.files || {};
+
+  container.innerHTML = `
+    <div class="card">
+      <h2 style="margin-bottom:4px;">${escapeAttr(t.name)}</h2>
+      <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:6px;">${escapeAttr(t.description || '')}</p>
+      <div id="sync-status-widget" style="font-size:0.85rem;margin-bottom:6px;"></div>
+    </div>
+    <div class="card">
+      <form id="dyn-form">
+        ${t.fields.map(f => dynFieldHTML(f, files[f.id])).join('')}
+        <button type="submit" class="btn btn-primary" id="submit-form-btn" style="width:100%;margin-top:8px;">
+          ${state.mySubmission ? 'Update submission' : 'Submit'}
+        </button>
+      </form>
+    </div>`;
+
+  updateStatusWidget();
+
+  t.fields.filter(f => f.type === 'text').forEach(f => {
+    const input = document.getElementById(`field-${f.id}`);
+    input.value = customerDraft.values[f.id] || '';
+    input.addEventListener('input', () => { customerDraft.values[f.id] = input.value; });
+  });
+
+  t.fields.filter(f => f.type === 'document').forEach(f => {
+    const fileInput = document.getElementById(`file-${f.id}`);
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) openCropModal(f, file);
+    });
+  });
+
+  document.getElementById('dyn-form').addEventListener('submit', handleSubmitForm);
+}
+
+function dynFieldHTML(f, existingFile){
+  if (f.type === 'text'){
+    return `
+      <div class="field dyn-field">
+        <label>${escapeAttr(f.label)}</label>
+        <input class="input" id="field-${f.id}" placeholder="Enter ${escapeAttr(f.label).toLowerCase()}">
+      </div>`;
+  }
+  return `
+    <div class="dyn-field">
+      <label style="font-size:0.82rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px;">${escapeAttr(f.label)}</label>
+      <div class="doc-slot ${existingFile ? 'has-file' : ''}" id="slot-${f.id}">
+        ${existingFile ? `<img class="thumb" src="${existingFile.url}" alt="">` : `<div class="thumb"></div>`}
+        <div style="flex:1;min-width:160px;">
+          <div class="doc-meta">
+            Crop: ${f.cropType} · Max ${f.maxSizeKB}KB · .${f.outputFormat}
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="document.getElementById('file-${f.id}').click()">
+            ${existingFile ? 'Replace file' : 'Choose file'}
+          </button>
+        </div>
+        <input type="file" id="file-${f.id}" accept="image/*" class="hidden">
+      </div>
+    </div>`;
+}
+
+/* ------------------------------------------------------------
+   CROP MODAL (Cropper.js) + CANVAS COMPRESSION PIPELINE
+   ------------------------------------------------------------ */
+function openCropModal(field, file){
+  activeCropFieldId = field.id;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'crop-modal';
+    overlay.innerHTML = `
+      <div class="modal-box">
+        <h3>Crop &amp; adjust — ${escapeAttr(field.label)}</h3>
+        <div class="crop-area"><img id="crop-img" src="${e.target.result}" alt=""></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+          <button class="btn btn-ghost" id="crop-cancel">Cancel</button>
+          <button class="btn btn-primary" id="crop-confirm">Use this crop</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const img = document.getElementById('crop-img');
+    const aspect = field.cropType === '1:1' ? 1 : field.cropType === '3:1' ? 3 : NaN;
+    cropperInstance = new Cropper(img, {
+      aspectRatio: aspect,
+      viewMode: 1,
+      autoCropArea: 0.9,
+      background: false
+    });
+
+    document.getElementById('crop-cancel').addEventListener('click', closeCropModal);
+    document.getElementById('crop-confirm').addEventListener('click', () => confirmCrop(field));
+  };
+  reader.readAsDataURL(file);
+}
+
+function closeCropModal(){
+  if (cropperInstance){ cropperInstance.destroy(); cropperInstance = null; }
+  const overlay = document.getElementById('crop-modal');
+  if (overlay) overlay.remove();
+}
+
+async function confirmCrop(field){
+  const confirmBtn = document.getElementById('crop-confirm');
+  confirmBtn.disabled = true;
+  confirmBtn.innerHTML = `<span class="spinner"></span> Processing…`;
+
+  const rawCanvas = cropperInstance.getCroppedCanvas({
+    width: field.targetWidth || undefined,
+    imageSmoothingQuality: 'high'
+  });
+  const mimeType = field.outputFormat === 'png' ? 'image/png' : 'image/jpeg';
+
+  const blob = await compressCanvas(rawCanvas, mimeType, field.maxSizeKB);
+  if (!blob){
+    toast('Could not compress image to the required size', 'error');
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Use this crop';
+    return;
+  }
+
+  const previewUrl = URL.createObjectURL(blob);
+  state.pendingFiles[field.id] = { blob, previewUrl, mimeType, ext: mimeType === 'image/png' ? 'png' : 'jpg' };
+
+  // Update the slot UI in place
+  const slot = document.getElementById(`slot-${field.id}`);
+  if (slot){
+    slot.classList.add('has-file');
+    const thumb = slot.querySelector('.thumb');
+    if (thumb.tagName === 'DIV'){
+      const img = document.createElement('img');
+      img.className = 'thumb';
+      img.src = previewUrl;
+      thumb.replaceWith(img);
+    } else {
+      thumb.src = previewUrl;
+    }
+    const meta = slot.querySelector('.doc-meta');
+    meta.innerHTML += `<br><span style="color:var(--success);">Ready — ${(blob.size/1024).toFixed(0)}KB</span>`;
+  }
+
+  closeCropModal();
+  toast('Image processed and ready to submit', 'success');
+}
+
+/**
+ * Iteratively compresses a canvas's image data until it fits under maxSizeKB.
+ * JPEG: reduce quality in steps. PNG: quality has no effect (lossless), so
+ * progressively downscale dimensions instead.
+ */
+async function compressCanvas(sourceCanvas, mimeType, maxSizeKB){
+  const maxBytes = maxSizeKB * 1024;
+  let canvas = sourceCanvas;
+
+  if (mimeType === 'image/jpeg'){
+    let quality = 0.92;
+    for (let i = 0; i < 10; i++){
+      const blob = await canvasToBlob(canvas, mimeType, quality);
+      if (!blob) return null;
+      if (blob.size <= maxBytes || quality <= 0.12) return blob;
+      quality -= 0.1;
+    }
+    return canvasToBlob(canvas, mimeType, 0.1);
+  }
+
+  // PNG path: downscale up to 6 times if still oversized.
+  let scale = 1;
+  for (let i = 0; i < 6; i++){
+    const blob = await canvasToBlob(canvas, mimeType);
+    if (!blob) return null;
+    if (blob.size <= maxBytes || scale <= 0.3) return blob;
+    scale -= 0.15;
+    canvas = scaleCanvas(sourceCanvas, scale);
+  }
+  return canvasToBlob(canvas, mimeType);
+}
+
+function canvasToBlob(canvas, mimeType, quality){
+  return new Promise((resolve) => canvas.toBlob(resolve, mimeType, quality));
+}
+
+function scaleCanvas(sourceCanvas, scale){
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(sourceCanvas.width * scale));
+  c.height = Math.max(1, Math.round(sourceCanvas.height * scale));
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(sourceCanvas, 0, 0, c.width, c.height);
+  return c;
+}
+
+/* ------------------------------------------------------------
+   SUBMIT: upload pending files + write Firestore doc
+   ------------------------------------------------------------ */
+async function handleSubmitForm(e){
+  e.preventDefault();
+  const btn = document.getElementById('submit-form-btn');
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.innerHTML = `<span class="spinner"></span> Uploading…`;
+
+  try {
+    const uidStr = state.user.uid;
+    const files = { ...(state.mySubmission?.files || {}) };
+
+    for (const [fieldId, pending] of Object.entries(state.pendingFiles)){
+      const field = state.template.fields.find(f => f.id === fieldId);
+      const path = `submissions/${uidStr}/${sanitize(field.label)}_${Date.now()}.${pending.ext}`;
+      const storageRef = ref(storage, path);
+      await uploadBytes(storageRef, pending.blob, { contentType: pending.mimeType });
+      const url = await getDownloadURL(storageRef);
+      files[fieldId] = { url, path };
+    }
+
+    await setDoc(doc(db, 'user_submissions', uidStr), {
+      uid: uidStr,
+      email: state.user.email,
+      templateId: state.template.id,
+      values: customerDraft.values,
+      files,
+      status: 'pending',
+      createdAt: state.mySubmission?.createdAt || serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    state.pendingFiles = {};
+    toast('Submission saved successfully', 'success');
+  } catch (err){
+    toast('Submission failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+
+function sanitize(str){
+  return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+/* ============================================================
+   BOOTSTRAP
+   ============================================================ */
+initTheme();
+
+onAuthStateChanged(auth, (user) => {
+  // Reset per-session state on every auth change.
+  templateLoadedOnce = false;
+  customerDraft = { values: {} };
+  state.pendingFiles = {};
+  if (feedUnsub){ feedUnsub(); feedUnsub = null; }
+
+  state.user = user;
+  state.isAdmin = !!user && user.uid === ADMIN_UID;
+  render();
+});
+</script>
 </body>
 </html>

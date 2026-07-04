@@ -1,0 +1,33 @@
+rules_version = '2';
+
+// ============================================================
+// FIREBASE STORAGE SECURITY RULES
+//
+// Replace ADMIN_UID below with the same UID used in index.html
+// and firestore.rules.
+// ============================================================
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn() && request.auth.uid == "ADMIN_UID";
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Files live at: submissions/{userId}/{fieldName}_{fileName}
+    // A customer may only read/write inside their own folder.
+    // The Admin may read every file to review submissions.
+    match /submissions/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId)
+                   && request.resource.size < 15 * 1024 * 1024 // 15MB hard ceiling
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+  }
+}
