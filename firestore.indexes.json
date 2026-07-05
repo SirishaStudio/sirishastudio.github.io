@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "user_submissions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "templateId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

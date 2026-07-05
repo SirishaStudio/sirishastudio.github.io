@@ -1,0 +1,14 @@
+{
+  "name": "Sirisha Studio",
+  "short_name": "Sirisha Studio",
+  "description": "Upload, crop, resize and submit your PAN card, Voter ID and other documents online.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F3EEFB",
+  "theme_color": "#8E7CC3",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

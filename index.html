@@ -3,7 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FormFlow — Dynamic Submission Portal</title>
+<title>Sirisha Studio — Document Submission Portal</title>
+<meta name="description" content="Upload, crop, resize and submit your PAN card, Voter ID and other documents online.">
+<meta name="theme-color" content="#8E7CC3">
+
+<!-- PWA: installable app -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sirisha Studio">
+
+<!-- Favicon: rounded "SS" monogram, matches brand mark -->
+<link rel="icon" type="image/svg+xml" href="icon.svg">
 
 <!-- Fonts: Quicksand (display, rounded/friendly) + Inter (body, readable) + JetBrains Mono (data/ids) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -114,7 +125,6 @@ code, .mono{ font-family:'JetBrains Mono', monospace; }
 a{ color: var(--primary); }
 button{ font-family:'Inter', sans-serif; cursor:pointer; }
 ::selection{ background: var(--accent); color: var(--accent-ink); }
-
 .hidden{ display:none !important; }
 
 /* Layout shells */
@@ -138,8 +148,24 @@ button{ font-family:'Inter', sans-serif; cursor:pointer; }
 }
 .brand-title{ font-size:1.05rem; }
 .brand-sub{ font-size:0.72rem; color: var(--text-muted); margin-top:-2px; }
-
 .topbar-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+/* Forms sub-nav (list of available tools) */
+.forms-nav{
+  position:sticky; top:63px; z-index:35;
+  display:flex; gap:8px; padding: 10px clamp(16px,4vw,36px);
+  background: var(--surface); backdrop-filter: blur(var(--blur));
+  border-bottom: 1px solid var(--border);
+  overflow-x:auto; white-space:nowrap;
+}
+.forms-nav::-webkit-scrollbar{ height:5px; }
+.nav-pill{
+  padding:7px 15px; border-radius:999px; border:1.5px solid var(--border);
+  background: transparent; color: var(--text-muted); font-weight:600; font-size:0.84rem;
+  flex-shrink:0; transition: all 0.2s ease;
+}
+.nav-pill.active{ background: var(--primary); color: var(--primary-ink); border-color:transparent; }
+.nav-pill .draft-dot{ display:inline-block; width:6px; height:6px; border-radius:50%; background: var(--warning); margin-right:5px; }
 
 .main{ flex:1; width:100%; max-width:1180px; margin:0 auto; padding: clamp(16px,4vw,32px); }
 
@@ -154,9 +180,10 @@ button{ font-family:'Inter', sans-serif; cursor:pointer; }
   padding: clamp(16px, 3vw, 26px);
 }
 .card + .card{ margin-top:18px; }
-
-.grid{ display:grid; gap:16px; }
-.grid-2{ grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); }
+.grid{ display:grid; gap:14px; }
+.grid-2{ grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); }
+.grid-3{ grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); }
+.grid-cards{ grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); }
 
 /* Buttons */
 .btn{
@@ -175,22 +202,28 @@ button{ font-family:'Inter', sans-serif; cursor:pointer; }
 .btn-success{ background: var(--success); color:#0a2a1f; }
 .btn-sm{ padding:6px 12px; font-size:0.8rem; border-radius: calc(var(--radius-sm) - 4px); }
 .btn:disabled{ opacity:0.5; cursor:not-allowed; transform:none; }
-.btn-icon{ padding:8px; border-radius:50%; }
 
-/* Inputs */
+/* Inputs — compact by default, not full-bleed */
 .field{ margin-bottom:14px; display:flex; flex-direction:column; gap:6px; }
 .field label{ font-size:0.82rem; font-weight:600; color: var(--text-muted); }
+.req{ color: var(--danger); }
 .input, select, textarea{
-  width:100%; padding:11px 14px; border-radius: var(--radius-sm);
+  padding:10px 13px; border-radius: var(--radius-sm);
   border:1.5px solid var(--border); background: var(--surface-solid);
-  color: var(--text); font-size:0.95rem; font-family:'Inter',sans-serif;
-  transition: all 0.3s ease;
+  color: var(--text); font-size:0.92rem; font-family:'Inter',sans-serif;
+  transition: all 0.3s ease; width:100%; max-width:340px;
 }
+.input.wide{ max-width:100%; }
 .input:focus, select:focus, textarea:focus{
   outline:none; border-color: var(--primary);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 20%, transparent);
 }
-textarea{ resize: vertical; min-height:70px; }
+.input.invalid{ border-color: var(--danger); }
+textarea{ resize: vertical; min-height:64px; max-width:100%; }
+.error-text{ font-size:0.76rem; color: var(--danger); min-height:0; }
+.hint-text{ font-size:0.76rem; color:var(--text-muted); }
+.name-parts{ display:flex; gap:8px; flex-wrap:wrap; }
+.name-parts .input{ max-width:180px; flex:1; }
 
 /* Badges */
 .badge{
@@ -199,12 +232,14 @@ textarea{ resize: vertical; min-height:70px; }
   text-transform:uppercase; letter-spacing:0.03em;
 }
 .badge-dot{ width:7px; height:7px; border-radius:50%; }
-.badge-pending{ background: color-mix(in srgb, var(--warning) 20%, transparent); color: var(--warning); }
-.badge-pending .badge-dot{ background: var(--warning); }
-.badge-approved{ background: color-mix(in srgb, var(--success) 22%, transparent); color: var(--success); }
-.badge-approved .badge-dot{ background: var(--success); }
-.badge-rejected{ background: color-mix(in srgb, var(--danger) 20%, transparent); color: var(--danger); }
-.badge-rejected .badge-dot{ background: var(--danger); }
+.badge-neutral{ background: color-mix(in srgb, var(--text-muted) 18%, transparent); color: var(--text-muted); }
+.badge-neutral .badge-dot{ background: var(--text-muted); }
+.badge-warn{ background: color-mix(in srgb, var(--warning) 22%, transparent); color: var(--warning); }
+.badge-warn .badge-dot{ background: var(--warning); }
+.badge-good{ background: color-mix(in srgb, var(--success) 22%, transparent); color: var(--success); }
+.badge-good .badge-dot{ background: var(--success); }
+.badge-bad{ background: color-mix(in srgb, var(--danger) 20%, transparent); color: var(--danger); }
+.badge-bad .badge-dot{ background: var(--danger); }
 .badge-dot.live{ animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse{ 0%,100%{ opacity:1; transform:scale(1);} 50%{ opacity:0.5; transform:scale(1.4);} }
 
@@ -216,34 +251,32 @@ textarea{ resize: vertical; min-height:70px; }
   padding:10px; box-shadow: var(--shadow); z-index:50; min-width:190px;
 }
 .theme-swatches.open{ display:flex; flex-direction:column; gap:4px; }
-.theme-opt{
-  display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px;
-  border:none; background:transparent; color:var(--text); font-size:0.85rem; text-align:left;
-}
+.theme-opt{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; border:none; background:transparent; color:var(--text); font-size:0.85rem; text-align:left; }
 .theme-opt:hover{ background: color-mix(in srgb, var(--primary) 12%, transparent); }
 .theme-opt.active{ font-weight:700; }
 .swatch{ width:18px; height:18px; border-radius:50%; flex-shrink:0; border:2px solid rgba(0,0,0,0.08); }
 
 /* Tabs */
 .tabs{ display:flex; gap:6px; margin-bottom:18px; flex-wrap:wrap; }
-.tab-btn{
-  padding:9px 16px; border-radius:999px; border:1.5px solid var(--border);
-  background: transparent; color: var(--text-muted); font-weight:600; font-size:0.88rem;
-}
+.tab-btn{ padding:9px 16px; border-radius:999px; border:1.5px solid var(--border); background: transparent; color: var(--text-muted); font-weight:600; font-size:0.88rem; }
 .tab-btn.active{ background: var(--primary); color: var(--primary-ink); border-color: transparent; }
 
-/* Form builder field cards */
-.fb-field{
-  border:1.5px dashed var(--border); border-radius: var(--radius-sm);
-  padding:14px; margin-bottom:12px; background: color-mix(in srgb, var(--surface-solid) 60%, transparent);
-}
-.fb-field-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
-.fb-field-head .tag{ font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); font-weight:700;}
+/* Compact form-builder field cards */
+.fb-field{ border:1.5px dashed var(--border); border-radius: var(--radius-sm); padding:10px 12px; margin-bottom:10px; background: color-mix(in srgb, var(--surface-solid) 60%, transparent); }
+.fb-field-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.fb-field-head .tag{ font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); font-weight:700; }
 .fb-order-controls{ display:flex; gap:4px; }
-.order-num{
-  width:26px; height:26px; border-radius:50%; background: var(--primary); color:var(--primary-ink);
-  display:flex; align-items:center; justify-content:center; font-size:0.78rem; font-weight:700; flex-shrink:0;
-}
+.order-num{ width:22px; height:22px; border-radius:50%; background: var(--primary); color:var(--primary-ink); display:flex; align-items:center; justify-content:center; font-size:0.72rem; font-weight:700; flex-shrink:0; }
+.fb-field .field{ margin-bottom:8px; }
+.fb-field-label-row{ display:flex; align-items:center; gap:8px; margin:8px 0; }
+.fb-field-label-row input{ max-width:none; flex:1; }
+.fb-advanced{ margin-top:4px; }
+.fb-advanced summary{ cursor:pointer; font-size:0.78rem; color:var(--primary); font-weight:600; list-style:none; user-select:none; }
+.fb-advanced summary::-webkit-details-marker{ display:none; }
+.fb-advanced summary::before{ content:'⚙ '; }
+.fb-advanced[open] summary::before{ content:'⌄ '; }
+.fb-advanced-body{ padding-top:8px; }
+.preset-note{ font-size:0.76rem; color:var(--text-muted); background: color-mix(in srgb, var(--primary) 8%, transparent); padding:8px 10px; border-radius:8px; margin:6px 0; }
 
 /* Table (live feed) */
 .table-wrap{ overflow-x:auto; border-radius: var(--radius-sm); border:1px solid var(--border); }
@@ -254,64 +287,59 @@ tr:last-child td{ border-bottom:none; }
 .copy-cell{ display:flex; align-items:center; gap:6px; }
 .copy-cell .val{ max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .file-link{ font-size:0.82rem; font-weight:600; }
+.pdf-chip{ display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:8px; background: color-mix(in srgb, var(--danger) 12%, transparent); font-size:0.78rem; font-weight:600; }
 
 /* Dynamic customer form */
 .dyn-field{ margin-bottom:18px; }
-.doc-slot{
-  border:2px dashed var(--border); border-radius: var(--radius-sm); padding:16px;
-  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
-}
+.doc-slot{ border:2px dashed var(--border); border-radius: var(--radius-sm); padding:14px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
 .doc-slot.has-file{ border-style:solid; border-color: var(--success); }
 .thumb{ width:64px; height:64px; border-radius:10px; object-fit:cover; background: var(--border); flex-shrink:0; }
 .doc-meta{ font-size:0.78rem; color:var(--text-muted); }
 
+/* Forms landing gallery */
+.form-card{ cursor:pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.form-card:hover{ transform: translateY(-3px); }
+.form-card .go{ font-size:0.82rem; font-weight:700; color:var(--primary); margin-top:10px; display:inline-block; }
+
 /* Modal (crop) */
-.modal-overlay{
-  position:fixed; inset:0; background: rgba(10,10,20,0.55); backdrop-filter: blur(6px);
-  display:flex; align-items:center; justify-content:center; z-index:100; padding:16px;
-}
-.modal-box{
-  background: var(--surface-solid); border-radius: var(--radius); max-width:560px; width:100%;
-  padding:22px; box-shadow: var(--shadow); max-height:92vh; overflow:auto;
-}
+.modal-overlay{ position:fixed; inset:0; background: rgba(10,10,20,0.55); backdrop-filter: blur(6px); display:flex; align-items:center; justify-content:center; z-index:100; padding:16px; }
+.modal-box{ background: var(--surface-solid); border-radius: var(--radius); max-width:560px; width:100%; padding:22px; box-shadow: var(--shadow); max-height:92vh; overflow:auto; }
 .crop-area{ max-height: 55vh; margin:14px 0; background:#111; border-radius: var(--radius-sm); overflow:hidden; }
 .crop-area img{ display:block; max-width:100%; }
 
 /* Spinner */
-.spinner{
-  width:16px; height:16px; border-radius:50%;
-  border:2.5px solid rgba(255,255,255,0.4); border-top-color: currentColor;
-  animation: spin 0.7s linear infinite;
-}
+.spinner{ width:16px; height:16px; border-radius:50%; border:2.5px solid rgba(255,255,255,0.4); border-top-color: currentColor; animation: spin 0.7s linear infinite; }
 @keyframes spin{ to{ transform: rotate(360deg); } }
 
 /* Toast */
 #toast-stack{ position:fixed; bottom:20px; right:20px; z-index:200; display:flex; flex-direction:column; gap:8px; max-width:320px;}
-.toast{
-  background: var(--surface-solid); border:1px solid var(--border); border-left:4px solid var(--primary);
-  border-radius: var(--radius-sm); padding:12px 16px; font-size:0.86rem; box-shadow: var(--shadow);
-  animation: toastIn 0.25s ease;
-}
+.toast{ background: var(--surface-solid); border:1px solid var(--border); border-left:4px solid var(--primary); border-radius: var(--radius-sm); padding:12px 16px; font-size:0.86rem; box-shadow: var(--shadow); animation: toastIn 0.25s ease; }
 .toast.error{ border-left-color: var(--danger); }
 .toast.success{ border-left-color: var(--success); }
 @keyframes toastIn{ from{ opacity:0; transform: translateX(20px);} to{ opacity:1; transform:none; } }
 
 /* Auth screen */
 .auth-wrap{ max-width:400px; margin:8vh auto; }
-.auth-divider{ display:flex; align-items:center; gap:12px; margin:18px 0; color:var(--text-muted); font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em; }
-.auth-divider::before, .auth-divider::after{ content:''; flex:1; height:1px; background:var(--border); }
 .auth-switch{ text-align:center; font-size:0.86rem; color: var(--text-muted); margin-top:14px; }
 .auth-switch a{ font-weight:600; cursor:pointer; }
+.auth-divider{ display:flex; align-items:center; gap:12px; margin:18px 0; color:var(--text-muted); font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em; }
+.auth-divider::before, .auth-divider::after{ content:''; flex:1; height:1px; background:var(--border); }
 
 /* Empty state */
 .empty-state{ text-align:center; padding: 40px 16px; color: var(--text-muted); }
 .empty-state h3{ margin-bottom:6px; }
+
+/* Rejection banner */
+.status-banner{ border-radius: var(--radius-sm); padding:12px 14px; font-size:0.86rem; margin-bottom:6px; }
+.status-banner.bad{ background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.status-banner.good{ background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
 
 /* Responsive */
 @media (max-width: 640px){
   .topbar{ flex-wrap:wrap; }
   .brand-sub{ display:none; }
   th, td{ font-size:0.8rem; padding:10px; }
+  .input, select, textarea{ max-width:100%; }
 }
 @media (prefers-reduced-motion: reduce){
   *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
@@ -321,10 +349,7 @@ tr:last-child td{ border-bottom:none; }
 <body data-theme="pastel">
 
 <div id="toast-stack"></div>
-
-<div class="app-shell" id="app-root">
-  <!-- Rendered dynamically by app.js -->
-</div>
+<div class="app-shell" id="app-root"></div>
 
 <script type="module">
 /* ============================================================
@@ -340,7 +365,6 @@ const firebaseConfig = {
   measurementId: "G-K3GB6LGVS3"
 };
 
-// The one account with Admin rights. Must match firestore.rules' isAdmin().
 const ADMIN_UID = "5R2061iDtwUIfXp1aacA378fhza2";
 const ADMIN_EMAIL = "sirishastudio9@gmail.com";
 
@@ -351,12 +375,11 @@ import {
   GoogleAuthProvider, signInWithPopup
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot,
-  collection, query, orderBy, serverTimestamp
+  getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot,
+  collection, query, where, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
-// NOTE: Firebase Cloud Storage is intentionally NOT used (requires the paid
-// Blaze plan). All files are compressed client-side and stored as Base64
-// strings directly inside Firestore documents instead — 100% free-tier.
+// No Cloud Storage: every uploaded file is compressed client-side and saved
+// as a Base64 string directly inside its Firestore submission document.
 
 const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
@@ -364,19 +387,29 @@ const db = getFirestore(fbApp);
 const googleProvider = new GoogleAuthProvider();
 
 /* ============================================================
+   PWA: register service worker (enables "Install app" on supported browsers)
+   ============================================================ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* fine if unavailable, e.g. file:// preview */ });
+  });
+}
+
+/* ============================================================
    GLOBAL STATE
    ============================================================ */
 const state = {
   user: null,
   isAdmin: false,
-  activeTemplateId: null,
-  template: null,          // currently loaded form_templates doc
-  submissions: [],         // admin live feed
-  mySubmission: null,      // customer's own submission doc
-  unsubscribers: []        // onSnapshot cleanup
+  templates: [],             // all templates (admin) or published-only (customer), live via onSnapshot
+  customerActiveTemplateId: null, // null = show the "choose a form" gallery; never auto-set
+  adminTab: 'home',          // 'home' | 'builder' | 'feed'
+  editingTemplateId: null,   // which template the builder is currently editing
+  feedTemplateId: null       // which template's submissions the feed is showing
 };
 
 const root = document.getElementById('app-root');
+function uid(){ return crypto.randomUUID(); }
 
 /* ============================================================
    TOAST UTILITY
@@ -387,7 +420,7 @@ function toast(message, type = 'info'){
   el.className = `toast ${type}`;
   el.textContent = message;
   stack.appendChild(el);
-  setTimeout(() => el.remove(), 3800);
+  setTimeout(() => el.remove(), 4200);
 }
 
 /* ============================================================
@@ -401,13 +434,11 @@ const THEMES = [
 ];
 function applyTheme(themeId){
   document.body.setAttribute('data-theme', themeId);
-  localStorage.setItem('formflow_theme', themeId);
+  localStorage.setItem('sirisha_theme', themeId);
 }
-function initTheme(){
-  applyTheme(localStorage.getItem('formflow_theme') || 'pastel');
-}
+function initTheme(){ applyTheme(localStorage.getItem('sirisha_theme') || 'pastel'); }
 function themePickerHTML(){
-  const current = localStorage.getItem('formflow_theme') || 'pastel';
+  const current = localStorage.getItem('sirisha_theme') || 'pastel';
   return `
     <div class="theme-picker">
       <button class="btn btn-ghost btn-sm" id="theme-toggle-btn" title="Change theme">🎨 Theme</button>
@@ -425,13 +456,85 @@ function wireThemePicker(){
   if (!btn) return;
   btn.addEventListener('click', (e) => { e.stopPropagation(); panel.classList.toggle('open'); });
   panel.querySelectorAll('.theme-opt').forEach(opt => {
-    opt.addEventListener('click', () => {
-      applyTheme(opt.dataset.themeId);
-      panel.classList.remove('open');
-      render();
-    });
+    opt.addEventListener('click', () => { applyTheme(opt.dataset.themeId); panel.classList.remove('open'); render(); });
   });
   document.addEventListener('click', () => panel.classList.remove('open'), { once: true });
+}
+
+function escapeAttr(str){
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+/* ============================================================
+   FIELD PRESETS — predefined "smart" text field types +
+   PAN Card-specific document specs (computed at 200 DPI)
+   ============================================================ */
+function cmToPx(cm){ return Math.round((cm / 2.54) * 200); }
+
+const TEXT_PRESETS = {
+  custom:   { label: 'Custom text' },
+  fullname: { label: 'Full name (First / Middle / Last)' },
+  phone:    { label: 'Phone number (10 digits)' },
+  email:    { label: 'Email address' },
+  aadhaar:  { label: 'Aadhaar number (12 digits)' }
+};
+
+// Exact PAN card photo/signature specs (matches standard PAN application portals).
+const PAN_PHOTO_SPEC   = { widthCm: 2.5, heightCm: 3.5, maxSizeKB: 50, outputFormat: 'jpeg' };
+const PAN_SIGNATURE_SPEC = { widthCm: 4.5, heightCm: 2.0, maxSizeKB: 50, outputFormat: 'jpeg' };
+const PAN_DOC_MAX_KB = 300;
+
+/* ------------------------------------------------------------
+   Formatting + validation for predefined text presets.
+   Raw (unspaced) value is always what's stored/copied; a
+   grouped/spaced version is only used for on-screen display.
+   ------------------------------------------------------------ */
+function rawDigits(str){ return String(str || '').replace(/\D/g, ''); }
+
+function formatForDisplay(preset, rawValue){
+  if (preset === 'phone'){
+    const d = rawDigits(rawValue).slice(0, 10);
+    return d.length > 5 ? `${d.slice(0,5)} ${d.slice(5)}` : d;
+  }
+  if (preset === 'aadhaar'){
+    const d = rawDigits(rawValue).slice(0, 12);
+    return d.replace(/(\d{4})(?=\d)/g, '$1 ');
+  }
+  return rawValue || '';
+}
+
+function validateField(field, rawValue){
+  const v = (rawValue ?? '').toString().trim();
+  if (field.type === 'document'){
+    return v ? null : 'This file is required.';
+  }
+  if (field.type === 'select'){
+    return v ? null : 'Please choose an option.';
+  }
+  // text presets
+  switch (field.preset){
+    case 'phone':
+      return /^\d{10}$/.test(v) ? null : 'Enter a valid 10-digit phone number.';
+    case 'aadhaar':
+      return /^\d{12}$/.test(v) ? null : 'Enter a valid 12-digit Aadhaar number.';
+    case 'email':
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null : 'Enter a valid email address.';
+    case 'fullname': {
+      try {
+        const parts = JSON.parse(v || '{}');
+        return (parts.first && parts.last) ? null : 'First and Last name are required.';
+      } catch { return 'First and Last name are required.'; }
+    }
+    default:
+      return v ? null : 'This field is required.';
+  }
+}
+
+function fullNameToDisplay(rawValue){
+  try {
+    const p = JSON.parse(rawValue || '{}');
+    return [p.first, p.middle, p.last].filter(Boolean).join(' ') || '—';
+  } catch { return rawValue || '—'; }
 }
 
 /* ============================================================
@@ -442,10 +545,10 @@ function topbarHTML(){
   return `
     <header class="topbar">
       <div class="brand">
-        <div class="brand-mark">FF</div>
+        <div class="brand-mark">SS</div>
         <div>
-          <div class="brand-title">FormFlow</div>
-          <div class="brand-sub">${state.isAdmin ? 'Admin workspace' : 'Submission portal'}</div>
+          <div class="brand-title">Sirisha Studio</div>
+          <div class="brand-sub">${state.isAdmin ? 'Admin workspace' : 'Document submission portal'}</div>
         </div>
       </div>
       <div class="topbar-actions">
@@ -462,7 +565,7 @@ function wireTopbar(){
 }
 
 /* ============================================================
-   AUTH SCREEN (sign in / sign up)
+   AUTH SCREEN (sign in / sign up / Google)
    ============================================================ */
 let authMode = 'signin';
 function renderAuth(){
@@ -471,16 +574,16 @@ function renderAuth(){
       <div class="card">
         <h2 style="margin-bottom:4px;">${authMode === 'signin' ? 'Welcome back' : 'Create your account'}</h2>
         <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:20px;">
-          ${authMode === 'signin' ? 'Sign in to continue to FormFlow.' : 'Sign up to start your submission.'}
+          ${authMode === 'signin' ? 'Sign in to continue to Sirisha Studio.' : 'Sign up to start your submission.'}
         </p>
         <form id="auth-form">
           <div class="field">
             <label>Email</label>
-            <input class="input" type="email" id="auth-email" required autocomplete="email">
+            <input class="input wide" type="email" id="auth-email" required autocomplete="email">
           </div>
           <div class="field">
             <label>Password</label>
-            <input class="input" type="password" id="auth-password" required minlength="6" autocomplete="current-password">
+            <input class="input wide" type="password" id="auth-password" required minlength="6" autocomplete="current-password">
           </div>
           <button class="btn btn-primary" type="submit" style="width:100%;margin-top:6px;" id="auth-submit-btn">
             ${authMode === 'signin' ? 'Sign in' : 'Sign up'}
@@ -547,154 +650,317 @@ function renderAuth(){
 }
 
 /* ============================================================
-   ROOT RENDER DISPATCH
+   TEMPLATES SUBSCRIPTION (shared: admin sees all, customer sees published)
    ============================================================ */
-function render(){
-  if (!state.user){
-    renderAuth();
-    return;
-  }
-  root.innerHTML = `${topbarHTML()}<div class="main" id="view-container"></div>`;
-  wireTopbar();
-  if (state.isAdmin){
-    renderAdminView();
-  } else {
-    renderCustomerView();
-  }
+let templatesUnsub = null;
+function subscribeToTemplates(onReady){
+  if (templatesUnsub) templatesUnsub();
+  templatesUnsub = onSnapshot(query(collection(db, 'form_templates'), orderBy('order', 'asc')), (snap) => {
+    const all = [];
+    snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+    state.templates = all;
+    onReady();
+  });
 }
 
 /* ============================================================
-   ADMIN VIEW
+   ROOT RENDER DISPATCH
    ============================================================ */
-let adminTab = 'builder';
+function render(){
+  if (!state.user){ renderAuth(); return; }
+  root.innerHTML = `${topbarHTML()}<div id="forms-nav-slot"></div><div class="main" id="view-container"></div>`;
+  wireTopbar();
+  if (state.isAdmin){ renderAdminView(); } else { renderCustomerView(); }
+}
+
+/* ============================================================
+   ADMIN VIEW — top-level tabs: Home (manage forms) / Builder / Feed
+   ============================================================ */
+function renderAdminView(){
+  subscribeToTemplates(() => {
+    const container = document.getElementById('view-container');
+    if (!container) return; // navigated away
+    drawAdminTabs();
+  });
+  const container = document.getElementById('view-container');
+  container.innerHTML = `<div class="card empty-state">Loading your forms…</div>`;
+}
+
+function drawAdminTabs(){
+  const container = document.getElementById('view-container');
+  container.innerHTML = `
+    <div class="tabs">
+      <button class="tab-btn ${state.adminTab === 'home' ? 'active' : ''}" data-tab="home">🏠 Manage Forms</button>
+      <button class="tab-btn ${state.adminTab === 'builder' ? 'active' : ''}" data-tab="builder">🛠️ Form Builder</button>
+      <button class="tab-btn ${state.adminTab === 'feed' ? 'active' : ''}" data-tab="feed">📋 Submissions</button>
+    </div>
+    <div id="admin-tab-content"></div>`;
+
+  container.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => { state.adminTab = btn.dataset.tab; drawAdminTabs(); });
+  });
+
+  if (state.adminTab === 'home') renderAdminHome();
+  else if (state.adminTab === 'builder') renderFormBuilder();
+  else renderSubmissionsFeed();
+}
+
+function renderAdminHome(){
+  const content = document.getElementById('admin-tab-content');
+  content.innerHTML = `
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div>
+        <h3>Your forms</h3>
+        <p style="color:var(--text-muted);font-size:0.85rem;">Create, publish and manage every form here.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" id="new-blank-form-btn">+ New blank form</button>
+        <button class="btn btn-accent btn-sm" id="pan-quickstart-btn">⚡ PAN Card quick start</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="grid grid-cards" id="forms-list">
+        ${state.templates.length ? state.templates.map(templateCardHTML).join('') : `
+          <div class="empty-state" style="grid-column:1/-1;"><h3>No forms yet</h3><p>Use the buttons above to create your first one.</p></div>`}
+      </div>
+    </div>`;
+
+  document.getElementById('new-blank-form-btn').addEventListener('click', () => createBlankTemplate());
+  document.getElementById('pan-quickstart-btn').addEventListener('click', () => createPanQuickStartTemplate());
+
+  content.querySelectorAll('.tpl-edit').forEach(btn => btn.addEventListener('click', () => {
+    state.editingTemplateId = btn.dataset.id; state.adminTab = 'builder'; builderLoaded = false; drawAdminTabs();
+  }));
+  content.querySelectorAll('.tpl-feed').forEach(btn => btn.addEventListener('click', () => {
+    state.feedTemplateId = btn.dataset.id; state.adminTab = 'feed'; drawAdminTabs();
+  }));
+  content.querySelectorAll('.tpl-publish').forEach(btn => btn.addEventListener('click', () => togglePublish(btn.dataset.id, btn.dataset.next === 'true')));
+  content.querySelectorAll('.tpl-delete').forEach(btn => btn.addEventListener('click', () => deleteTemplate(btn.dataset.id, btn.dataset.name)));
+}
+
+function templateCardHTML(t){
+  const published = !!t.published;
+  return `
+    <div class="card form-card" style="margin-top:0;">
+      <span class="badge ${published ? 'badge-good' : 'badge-warn'}"><span class="badge-dot"></span>${published ? 'Published' : 'Draft'}</span>
+      <h3 style="margin-top:10px;">${escapeAttr(t.name || 'Untitled form')}</h3>
+      <p style="color:var(--text-muted);font-size:0.84rem;">${escapeAttr(t.description || '')}</p>
+      <p style="font-size:0.78rem;color:var(--text-muted);">${(t.fields || []).length} field(s)</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+        <button class="btn btn-ghost btn-sm tpl-edit" data-id="${t.id}">Edit</button>
+        <button class="btn btn-ghost btn-sm tpl-feed" data-id="${t.id}">Submissions</button>
+        <button class="btn ${published ? 'btn-ghost' : 'btn-success'} btn-sm tpl-publish" data-id="${t.id}" data-next="${!published}">${published ? 'Unpublish' : 'Publish'}</button>
+        <button class="btn btn-danger btn-sm tpl-delete" data-id="${t.id}" data-name="${escapeAttr(t.name)}">Delete</button>
+      </div>
+    </div>`;
+}
+
+async function togglePublish(id, next){
+  try {
+    await updateDoc(doc(db, 'form_templates', id), { published: next, updatedAt: serverTimestamp() });
+    toast(next ? 'Form published' : 'Form unpublished', 'success');
+  } catch (err){ toast('Failed: ' + err.message, 'error'); }
+}
+async function deleteTemplate(id, name){
+  if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+  try {
+    await deleteDoc(doc(db, 'form_templates', id));
+    toast('Form deleted', 'success');
+  } catch (err){ toast('Failed: ' + err.message, 'error'); }
+}
+
+async function createBlankTemplate(){
+  const id = uid();
+  builderDraft = { id, name: '', description: '', fields: [], order: state.templates.length };
+  builderLoaded = true;
+  state.editingTemplateId = id;
+  state.adminTab = 'builder';
+  drawAdminTabs();
+}
+
+/* ------------------------------------------------------------
+   PAN CARD QUICK START — generates the exact field set used by
+   real PAN card portals, with locked (non-stretching) dimensions.
+   ------------------------------------------------------------ */
+function createPanQuickStartTemplate(){
+  const id = uid();
+  const appTypeId = uid();
+  const docId = uid();
+
+  builderDraft = {
+    id,
+    name: 'PAN Card Application',
+    description: 'Upload your photo, signature and supporting document for your PAN card application.',
+    order: state.templates.length,
+    fields: [
+      { id: uid(), type: 'text', label: "Applicant's Full Name", preset: 'fullname', required: true },
+      { id: uid(), type: 'text', label: 'Phone Number', preset: 'phone', required: true },
+      { id: uid(), type: 'text', label: 'Email Address', preset: 'email', required: true },
+      { id: uid(), type: 'text', label: 'Aadhaar Number', preset: 'aadhaar', required: true },
+      {
+        id: appTypeId, type: 'select', label: 'Application Type', preset: 'app_type', required: true,
+        options: [{ value: 'new', label: 'New PAN Card' }, { value: 'change', label: 'Correction / Change' }]
+      },
+      {
+        id: uid(), type: 'document', label: 'Upload Photo', preset: 'pan_photo', required: true,
+        acceptType: 'image', outputFormat: PAN_PHOTO_SPEC.outputFormat, maxSizeKB: PAN_PHOTO_SPEC.maxSizeKB,
+        targetWidthPx: cmToPx(PAN_PHOTO_SPEC.widthCm), targetHeightPx: cmToPx(PAN_PHOTO_SPEC.heightCm)
+      },
+      {
+        id: uid(), type: 'document', label: 'Upload Signature', preset: 'pan_signature', required: true,
+        acceptType: 'image', outputFormat: PAN_SIGNATURE_SPEC.outputFormat, maxSizeKB: PAN_SIGNATURE_SPEC.maxSizeKB,
+        targetWidthPx: cmToPx(PAN_SIGNATURE_SPEC.widthCm), targetHeightPx: cmToPx(PAN_SIGNATURE_SPEC.heightCm)
+      },
+      {
+        id: docId, type: 'document', label: "Upload Applicant's Supporting Document", preset: 'pan_document', required: true,
+        acceptType: 'pdf', maxSizeKB: PAN_DOC_MAX_KB,
+        conditionalOn: appTypeId,
+        conditionalLabels: {
+          new: "Upload proof of Date of Birth (other than Aadhaar) — PDF, max 300KB",
+          change: "Upload PAN Copy or Acknowledgement Receipt Copy — PDF, max 300KB"
+        }
+      }
+    ]
+  };
+  builderLoaded = true;
+  state.editingTemplateId = id;
+  state.adminTab = 'builder';
+  drawAdminTabs();
+  toast('PAN Card template loaded — review and Save & Publish', 'success');
+}
+
+/* ============================================================
+   FORM BUILDER (compact, per-template)
+   ============================================================ */
 let builderDraft = { name: '', description: '', fields: [] };
 let builderLoaded = false;
+let lastAddedFieldId = null;
 
-function uid(){ return crypto.randomUUID(); }
-
-async function loadBuilderDraft(){
-  const settingsSnap = await getDoc(doc(db, 'settings', 'app'));
-  const activeId = settingsSnap.exists() ? settingsSnap.data().activeTemplateId : null;
-  if (activeId){
-    const tSnap = await getDoc(doc(db, 'form_templates', activeId));
-    if (tSnap.exists()){
-      const data = tSnap.data();
-      builderDraft = {
-        id: activeId,
-        name: data.name || '',
-        description: data.description || '',
-        fields: (data.fields || []).sort((a,b) => a.order - b.order)
-      };
-    }
+async function loadBuilderDraftIfNeeded(){
+  if (builderLoaded) return;
+  const existing = state.templates.find(t => t.id === state.editingTemplateId);
+  if (existing){
+    builderDraft = {
+      id: existing.id, name: existing.name || '', description: existing.description || '',
+      published: !!existing.published, order: existing.order ?? 0,
+      fields: (existing.fields || []).slice().sort((a,b) => a.order - b.order)
+    };
   }
   builderLoaded = true;
 }
 
 function defaultFieldDefaults(type){
   if (type === 'text'){
-    return { id: uid(), type: 'text', label: 'Untitled field' };
+    return { id: uid(), type: 'text', label: 'Untitled field', preset: 'custom', required: true };
+  }
+  if (type === 'select'){
+    return { id: uid(), type: 'select', label: 'Untitled choice field', preset: 'custom', required: true,
+      options: [{ value: 'option_1', label: 'Option 1' }, { value: 'option_2', label: 'Option 2' }] };
   }
   return {
-    // Cropping is always free-style now (no fixed aspect ratio) — see openCropModal().
-    id: uid(), type: 'document', label: 'Untitled document',
-    maxSizeKB: 60, outputFormat: 'jpeg', targetWidth: 700
+    id: uid(), type: 'document', label: 'Untitled document', preset: 'custom', required: true,
+    acceptType: 'image', maxSizeKB: 60, outputFormat: 'jpeg', targetWidthPx: 700
   };
-}
-
-function renderAdminView(){
-  const container = document.getElementById('view-container');
-  container.innerHTML = `
-    <div class="tabs">
-      <button class="tab-btn ${adminTab === 'builder' ? 'active' : ''}" data-tab="builder">🛠️ Form Builder</button>
-      <button class="tab-btn ${adminTab === 'feed' ? 'active' : ''}" data-tab="feed">📋 Live Submissions</button>
-    </div>
-    <div id="admin-tab-content"></div>`;
-
-  container.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      adminTab = btn.dataset.tab;
-      renderAdminView();
-    });
-  });
-
-  if (adminTab === 'builder'){
-    renderFormBuilder();
-  } else {
-    renderSubmissionsFeed();
-  }
 }
 
 async function renderFormBuilder(){
   const content = document.getElementById('admin-tab-content');
-  if (!builderLoaded){
-    content.innerHTML = `<div class="card empty-state">Loading your form template…</div>`;
-    await loadBuilderDraft();
+  if (!state.editingTemplateId){
+    content.innerHTML = `<div class="card empty-state"><h3>No form selected</h3><p>Go to <b>Manage Forms</b> and click Edit on a form, or create a new one.</p></div>`;
+    return;
   }
+  if (!builderLoaded) await loadBuilderDraftIfNeeded();
+  drawBuilder();
+  if (lastAddedFieldId) scrollToAndFocusField(lastAddedFieldId);
+}
 
+function drawBuilder(){
+  const content = document.getElementById('admin-tab-content');
   content.innerHTML = `
     <div class="card">
-      <h3 style="margin-bottom:14px;">Tool details</h3>
       <div class="grid grid-2">
         <div class="field">
-          <label>Tool name</label>
-          <input class="input" id="b-name" value="${escapeAttr(builderDraft.name)}" placeholder="e.g. KYC Document Collection">
+          <label>Tool name <span class="req">*</span></label>
+          <input class="input wide" id="b-name" value="${escapeAttr(builderDraft.name)}" placeholder="e.g. PAN Card Application">
         </div>
         <div class="field">
           <label>Description</label>
-          <input class="input" id="b-desc" value="${escapeAttr(builderDraft.description)}" placeholder="Short description shown to users">
+          <input class="input wide" id="b-desc" value="${escapeAttr(builderDraft.description)}" placeholder="Short description shown to users">
         </div>
       </div>
     </div>
 
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-        <h3>Fields <span style="color:var(--text-muted);font-weight:500;font-size:0.85rem;">(rendered to users in this order)</span></h3>
-        <div style="display:flex;gap:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+        <h3 style="font-size:1rem;">Fields <span style="color:var(--text-muted);font-weight:500;font-size:0.8rem;">(all fields are mandatory)</span></h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-ghost btn-sm" id="add-text-field">+ Text field</button>
+          <button class="btn btn-ghost btn-sm" id="add-choice-field">+ Choice field</button>
           <button class="btn btn-accent btn-sm" id="add-doc-field">+ Document field</button>
         </div>
       </div>
       <div id="fb-fields-list">
         ${builderDraft.fields.length ? builderDraft.fields.map((f,i) => fieldBuilderRowHTML(f,i)).join('') : `
-          <div class="empty-state"><h3>No fields yet</h3><p>Add a text or document field to get started.</p></div>`}
+          <div class="empty-state"><h3>No fields yet</h3><p>Add a field to get started, or load the PAN Card quick start from Manage Forms.</p></div>`}
       </div>
     </div>
 
     <div style="display:flex;justify-content:flex-end;gap:10px;">
-      <button class="btn btn-primary" id="save-template-btn">💾 Save & Publish Template</button>
+      <button class="btn btn-primary" id="save-template-btn">💾 Save form</button>
     </div>`;
 
-  document.getElementById('add-text-field').addEventListener('click', () => {
-    builderDraft.fields.push(defaultFieldDefaults('text'));
-    renderFormBuilder();
-  });
-  document.getElementById('add-doc-field').addEventListener('click', () => {
-    builderDraft.fields.push(defaultFieldDefaults('document'));
-    renderFormBuilder();
-  });
+  document.getElementById('add-text-field').addEventListener('click', () => addField('text'));
+  document.getElementById('add-choice-field').addEventListener('click', () => addField('select'));
+  document.getElementById('add-doc-field').addEventListener('click', () => addField('document'));
   document.getElementById('save-template-btn').addEventListener('click', saveTemplate);
 
+  wireBuilderFieldEvents(content);
+}
+
+function addField(type){
+  const f = defaultFieldDefaults(type);
+  builderDraft.fields.push(f);
+  lastAddedFieldId = f.id;
+  drawBuilder();
+  scrollToAndFocusField(f.id);
+}
+
+function scrollToAndFocusField(fieldId){
+  requestAnimationFrame(() => {
+    const row = document.querySelector(`.fb-field[data-field-id="${fieldId}"]`);
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const labelInput = row.querySelector('.fb-label-input');
+    if (labelInput){ labelInput.focus(); labelInput.select(); }
+    lastAddedFieldId = null;
+  });
+}
+
+function wireBuilderFieldEvents(content){
   content.querySelectorAll('[data-field-prop]').forEach(el => {
-    el.addEventListener('input', (e) => {
+    el.addEventListener('input', () => {
       const fid = el.closest('.fb-field').dataset.fieldId;
       const field = builderDraft.fields.find(f => f.id === fid);
       if (!field) return;
       const prop = el.dataset.fieldProp;
       field[prop] = (el.type === 'number') ? Number(el.value) : el.value;
+      if (prop === 'preset') { applyPresetDefaults(field); drawBuilder(); }
     });
   });
-  content.querySelectorAll('.fb-remove').forEach(btn => {
-    btn.addEventListener('click', () => {
-      builderDraft.fields = builderDraft.fields.filter(f => f.id !== btn.dataset.fieldId);
-      renderFormBuilder();
-    });
-  });
-  content.querySelectorAll('.fb-move-up').forEach(btn => {
-    btn.addEventListener('click', () => { moveField(btn.dataset.fieldId, -1); });
-  });
-  content.querySelectorAll('.fb-move-down').forEach(btn => {
-    btn.addEventListener('click', () => { moveField(btn.dataset.fieldId, 1); });
-  });
+  content.querySelectorAll('.fb-remove').forEach(btn => btn.addEventListener('click', () => {
+    builderDraft.fields = builderDraft.fields.filter(f => f.id !== btn.dataset.fieldId);
+    drawBuilder();
+  }));
+  content.querySelectorAll('.fb-move-up').forEach(btn => btn.addEventListener('click', () => moveField(btn.dataset.fieldId, -1)));
+  content.querySelectorAll('.fb-move-down').forEach(btn => btn.addEventListener('click', () => moveField(btn.dataset.fieldId, 1)));
+}
+
+function applyPresetDefaults(field){
+  if (field.type !== 'text') return;
+  if (field.preset === 'phone') field.label = field.label === 'Untitled field' ? 'Phone Number' : field.label;
+  if (field.preset === 'email') field.label = field.label === 'Untitled field' ? 'Email Address' : field.label;
+  if (field.preset === 'aadhaar') field.label = field.label === 'Untitled field' ? 'Aadhaar Number' : field.label;
+  if (field.preset === 'fullname') field.label = field.label === 'Untitled field' ? 'Full Name' : field.label;
 }
 
 function moveField(fieldId, dir){
@@ -703,122 +969,160 @@ function moveField(fieldId, dir){
   if (target < 0 || target >= builderDraft.fields.length) return;
   const [item] = builderDraft.fields.splice(idx, 1);
   builderDraft.fields.splice(target, 0, item);
-  renderFormBuilder();
+  drawBuilder();
 }
 
 function fieldBuilderRowHTML(f, i){
   const isDoc = f.type === 'document';
+  const isSelect = f.type === 'select';
+  const isLockedPreset = ['pan_photo','pan_signature','pan_document','app_type'].includes(f.preset);
+
+  let bodyHTML = '';
+  if (f.type === 'text'){
+    bodyHTML = `
+      <div class="field" style="max-width:280px;">
+        <label>Field type</label>
+        <select data-field-prop="preset">
+          ${Object.entries(TEXT_PRESETS).map(([k,v]) => `<option value="${k}" ${f.preset===k?'selected':''}>${v.label}</option>`).join('')}
+        </select>
+      </div>`;
+  } else if (isSelect && isLockedPreset){
+    bodyHTML = `<p class="preset-note">Locked choice field: ${(f.options||[]).map(o=>escapeAttr(o.label)).join(' / ')}. Other document fields can be set to change their label automatically based on this answer.</p>`;
+  } else if (isSelect){
+    bodyHTML = `<p class="hint-text">Choice options: ${(f.options||[]).map(o=>escapeAttr(o.label)).join(', ')}</p>`;
+  } else if (isDoc){
+    if (isLockedPreset){
+      const spec = f.preset === 'pan_photo' ? PAN_PHOTO_SPEC : f.preset === 'pan_signature' ? PAN_SIGNATURE_SPEC : null;
+      bodyHTML = spec
+        ? `<p class="preset-note">Locked spec: ${spec.widthCm}×${spec.heightCm} cm @ 200 DPI (${f.targetWidthPx}×${f.targetHeightPx}px) · Max ${f.maxSizeKB}KB · .${f.outputFormat} · crop is locked to this exact ratio so images are never stretched.</p>`
+        : `<p class="preset-note">PDF upload · Max ${f.maxSizeKB}KB. Label changes automatically based on the applicant's Application Type answer.</p>`;
+    } else {
+      bodyHTML = `
+        <details class="fb-advanced">
+          <summary>Upload &amp; compression settings</summary>
+          <div class="fb-advanced-body grid grid-3">
+            <div class="field">
+              <label>File type</label>
+              <select data-field-prop="acceptType">
+                <option value="image" ${f.acceptType==='image'?'selected':''}>Image (crop + compress)</option>
+                <option value="pdf" ${f.acceptType==='pdf'?'selected':''}>PDF document</option>
+              </select>
+            </div>
+            ${f.acceptType !== 'pdf' ? `
+            <div class="field">
+              <label>Output format</label>
+              <select data-field-prop="outputFormat">
+                <option value="jpeg" ${f.outputFormat==='jpeg'?'selected':''}>.jpg</option>
+                <option value="png" ${f.outputFormat==='png'?'selected':''}>.png</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Target width (px)</label>
+              <input class="input" type="number" min="100" data-field-prop="targetWidthPx" value="${f.targetWidthPx || 700}">
+            </div>` : ''}
+            <div class="field">
+              <label>Max size (KB)</label>
+              <input class="input" type="number" min="10" max="${f.acceptType==='pdf'?1000:300}" data-field-prop="maxSizeKB" value="${f.maxSizeKB}">
+            </div>
+          </div>
+        </details>`;
+    }
+  }
+
   return `
     <div class="fb-field" data-field-id="${f.id}">
       <div class="fb-field-head">
-        <div style="display:flex;align-items:center;gap:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
           <span class="order-num">${i+1}</span>
-          <span class="tag">${isDoc ? 'Document field' : 'Text field'}</span>
+          <span class="tag">${isDoc ? 'Document' : isSelect ? 'Choice' : 'Text'}${isLockedPreset ? ' · PAN' : ''}</span>
         </div>
         <div class="fb-order-controls">
           <button class="btn btn-ghost btn-sm fb-move-up" data-field-id="${f.id}" title="Move up">↑</button>
           <button class="btn btn-ghost btn-sm fb-move-down" data-field-id="${f.id}" title="Move down">↓</button>
-          <button class="btn btn-danger btn-sm fb-remove" data-field-id="${f.id}">Remove</button>
+          <button class="btn btn-danger btn-sm fb-remove" data-field-id="${f.id}">✕</button>
         </div>
       </div>
-      <div class="field">
-        <label>Field label</label>
-        <input class="input" data-field-prop="label" value="${escapeAttr(f.label)}">
+      <div class="fb-field-label-row">
+        <input class="input fb-label-input" data-field-prop="label" value="${escapeAttr(f.label)}" placeholder="Field label">
       </div>
-      ${isDoc ? `
-      <p style="font-size:0.78rem;color:var(--text-muted);margin:-4px 0 10px;">
-        Cropping is free-style — the user can drag the box to any size or shape. Keep max size small: this file is stored as text inside the submission document, and Firestore caps each document at 1MB total.
-      </p>
-      <div class="grid grid-2">
-        <div class="field">
-          <label>Output format</label>
-          <select data-field-prop="outputFormat">
-            <option value="jpeg" ${f.outputFormat==='jpeg'?'selected':''}>Convert to .jpg</option>
-            <option value="png" ${f.outputFormat==='png'?'selected':''}>Convert to .png</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Max file size (KB)</label>
-          <input class="input" type="number" min="10" max="300" data-field-prop="maxSizeKB" value="${f.maxSizeKB}">
-        </div>
-        <div class="field">
-          <label>Target width (px)</label>
-          <input class="input" type="number" min="100" data-field-prop="targetWidth" value="${f.targetWidth}">
-        </div>
-      </div>` : ''}
+      ${bodyHTML}
     </div>`;
-}
-
-function escapeAttr(str){
-  return String(str ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 }
 
 async function saveTemplate(){
   const btn = document.getElementById('save-template-btn');
   builderDraft.name = document.getElementById('b-name').value.trim();
   builderDraft.description = document.getElementById('b-desc').value.trim();
-  if (!builderDraft.name){ toast('Please give your tool a name', 'error'); return; }
+  if (!builderDraft.name){ toast('Please give your form a name', 'error'); return; }
   if (!builderDraft.fields.length){ toast('Add at least one field', 'error'); return; }
 
-  // Preserve sequence order explicitly as an `order` integer on every field.
-  builderDraft.fields.forEach((f,i) => { f.order = i; });
+  builderDraft.fields.forEach((f,i) => { f.order = i; f.required = true; });
 
   btn.disabled = true;
   btn.innerHTML = `<span class="spinner"></span> Saving…`;
   try {
-    const templateId = builderDraft.id || uid();
-    await setDoc(doc(db, 'form_templates', templateId), {
+    await setDoc(doc(db, 'form_templates', builderDraft.id), {
       name: builderDraft.name,
       description: builderDraft.description,
       fields: builderDraft.fields,
+      order: builderDraft.order ?? 0,
+      published: builderDraft.published ?? false,
       updatedAt: serverTimestamp(),
-      createdAt: builderDraft.id ? (builderDraft.createdAt || serverTimestamp()) : serverTimestamp()
+      createdAt: builderDraft.createdAt || serverTimestamp()
     }, { merge: true });
-    await setDoc(doc(db, 'settings', 'app'), { activeTemplateId: templateId }, { merge: true });
-    builderDraft.id = templateId;
-    toast('Template saved and published', 'success');
+    toast('Saved. Publish it from Manage Forms when ready.', 'success');
+    state.adminTab = 'home';
+    drawAdminTabs();
   } catch (err){
     toast('Save failed: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '💾 Save & Publish Template';
+    btn.innerHTML = '💾 Save form';
   }
 }
 
 /* ============================================================
-   ADMIN: LIVE SUBMISSIONS FEED
+   ADMIN: LIVE SUBMISSIONS FEED (scoped to one template)
    ============================================================ */
 let feedUnsub = null;
 
 function renderSubmissionsFeed(){
   const content = document.getElementById('admin-tab-content');
-  content.innerHTML = `<div class="card"><div class="empty-state">Connecting to live feed…</div></div>`;
+  if (!state.feedTemplateId){
+    content.innerHTML = `<div class="card empty-state"><h3>No form selected</h3><p>Go to <b>Manage Forms</b> and click Submissions on a form.</p></div>`;
+    return;
+  }
+  const tpl = state.templates.find(t => t.id === state.feedTemplateId);
+  content.innerHTML = `<div class="card empty-state">Connecting to live feed…</div>`;
 
   if (feedUnsub) feedUnsub();
-  const q = query(collection(db, 'user_submissions'), orderBy('createdAt', 'asc'));
+  const q = query(
+    collection(db, 'user_submissions'),
+    where('templateId', '==', state.feedTemplateId),
+    orderBy('createdAt', 'asc')
+  );
   feedUnsub = onSnapshot(q, (snap) => {
     const rows = [];
     snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
-    state.submissions = rows;
-    drawFeedTable();
+    drawFeedTable(tpl, rows);
   }, (err) => {
-    content.innerHTML = `<div class="card empty-state"><h3>Couldn't load submissions</h3><p>${err.message}</p></div>`;
+    content.innerHTML = `<div class="card empty-state"><h3>Couldn't load submissions</h3><p>${escapeAttr(err.message)}</p></div>`;
   });
 }
 
-function drawFeedTable(){
+function drawFeedTable(tpl, rows){
   const content = document.getElementById('admin-tab-content');
-  if (!content) return; // user navigated away
-  const rows = state.submissions;
-  const fieldDefs = (builderDraft.fields || []);
+  if (!content) return;
+  const fieldDefs = (tpl?.fields || []);
 
   if (!rows.length){
-    content.innerHTML = `<div class="card empty-state"><h3>No submissions yet</h3><p>Once users start filling out the form, they'll appear here in real time.</p></div>`;
+    content.innerHTML = `<div class="card empty-state"><h3>No submissions yet</h3><p>Once users start filling out "${escapeAttr(tpl?.name || 'this form')}", they'll appear here in real time.</p></div>`;
     return;
   }
 
   content.innerHTML = `
     <div class="card">
+      <h3 style="margin-bottom:12px;">${escapeAttr(tpl?.name || '')} — submissions</h3>
       <div class="table-wrap">
         <table>
           <thead>
@@ -826,49 +1130,62 @@ function drawFeedTable(){
               <th>Submitted</th>
               <th>User</th>
               ${fieldDefs.map(f => `<th>${escapeAttr(f.label)}</th>`).join('')}
+              <th>Payment</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
-          <tbody>
-            ${rows.map(rowHTML).join('')}
-          </tbody>
+          <tbody>${rows.map(r => rowHTML(fieldDefs, r)).join('')}</tbody>
         </table>
       </div>
     </div>`;
 
-  content.querySelectorAll('.copy-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      await navigator.clipboard.writeText(btn.dataset.copyValue || '');
-      toast('Copied to clipboard', 'success');
-    });
-  });
-  content.querySelectorAll('.approve-btn').forEach(btn => {
-    btn.addEventListener('click', () => patchStatus(btn.dataset.subId, 'approved'));
-  });
-  content.querySelectorAll('.reject-btn').forEach(btn => {
-    btn.addEventListener('click', () => patchStatus(btn.dataset.subId, 'rejected'));
-  });
+  content.querySelectorAll('.copy-btn').forEach(btn => btn.addEventListener('click', async () => {
+    await navigator.clipboard.writeText(btn.dataset.copyValue || '');
+    toast('Copied to clipboard', 'success');
+  }));
+  content.querySelectorAll('.pay-toggle-btn').forEach(btn => btn.addEventListener('click', () =>
+    patchSubmission(btn.dataset.subId, { paymentStatus: btn.dataset.next })));
+  content.querySelectorAll('.applied-btn').forEach(btn => btn.addEventListener('click', () =>
+    patchSubmission(btn.dataset.subId, { applicationStatus: 'applied', rejectionReason: null })));
+  content.querySelectorAll('.reject-btn').forEach(btn => btn.addEventListener('click', () => {
+    const reason = window.prompt('What went wrong with this submission? This message will be shown to the applicant.');
+    if (reason === null || reason.trim() === '') return;
+    patchSubmission(btn.dataset.subId, { applicationStatus: 'rejected', rejectionReason: reason.trim() });
+  }));
 }
 
-function rowHTML(sub){
-  // Every field — text AND document (as a Base64 data URL) — now lives in
-  // this single ordered `values` map, keyed by field id.
-  const values = sub.values || {};
-  const status = sub.status || 'pending';
-  const created = sub.createdAt?.toDate ? sub.createdAt.toDate().toLocaleString() : '—';
+function fieldDisplayValue(f, rawValue){
+  if (!rawValue) return '';
+  if (f.preset === 'fullname') return fullNameToDisplay(rawValue);
+  if (f.preset === 'phone' || f.preset === 'aadhaar') return formatForDisplay(f.preset, rawValue);
+  if (f.type === 'select'){
+    const opt = (f.options || []).find(o => o.value === rawValue);
+    return opt ? opt.label : rawValue;
+  }
+  return rawValue;
+}
 
-  const fieldCells = (builderDraft.fields || []).map(f => {
-    const val = values[f.id] || '';
+function rowHTML(fieldDefs, sub){
+  const values = sub.values || {};
+  const created = sub.createdAt?.toDate ? sub.createdAt.toDate().toLocaleString() : '—';
+  const paymentStatus = sub.paymentStatus || 'unpaid';
+  const appStatus = sub.applicationStatus || 'submitted';
+
+  const fieldCells = fieldDefs.map(f => {
+    const raw = values[f.id] || '';
     if (f.type === 'document'){
-      return `<td>${val
-        ? `<a href="${val}" target="_blank" rel="noopener" title="Open full size">
-             <img src="${val}" style="max-width: 120px; max-height: 120px; object-fit: contain; border-radius: 6px; border: 1px solid #ccc;">
-           </a>`
-        : '<span style="color:var(--text-muted)">—</span>'}</td>`;
+      if (!raw) return `<td><span style="color:var(--text-muted)">—</span></td>`;
+      if (f.acceptType === 'pdf'){
+        return `<td><a class="pdf-chip" href="${raw}" target="_blank" rel="noopener">📄 Open PDF</a></td>`;
+      }
+      return `<td><a href="${raw}" target="_blank" rel="noopener" title="Open full size">
+        <img src="${raw}" style="max-width: 120px; max-height: 120px; object-fit: contain; border-radius: 6px; border: 1px solid #ccc;">
+      </a></td>`;
     }
-    return `<td><div class="copy-cell"><span class="val mono" title="${escapeAttr(val)}">${escapeAttr(val) || '—'}</span>
-      ${val ? `<button class="btn btn-ghost btn-sm copy-btn" data-copy-value="${escapeAttr(val)}" title="Copy">⧉</button>` : ''}</div></td>`;
+    const display = fieldDisplayValue(f, raw);
+    return `<td><div class="copy-cell"><span class="val mono" title="${escapeAttr(display)}">${escapeAttr(display) || '—'}</span>
+      ${raw ? `<button class="btn btn-ghost btn-sm copy-btn" data-copy-value="${escapeAttr(raw)}" title="Copy raw value">⧉</button>` : ''}</div></td>`;
   }).join('');
 
   return `
@@ -876,69 +1193,132 @@ function rowHTML(sub){
       <td class="mono" style="font-size:0.78rem;">${created}</td>
       <td>${escapeAttr(sub.email || sub.uid)}</td>
       ${fieldCells}
-      <td>${statusBadge(status, true)}</td>
+      <td>${paymentBadge(paymentStatus)}</td>
+      <td>${appStatusBadge(appStatus, sub.rejectionReason)}</td>
       <td>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-success btn-sm approve-btn" data-sub-id="${sub.id}" ${status==='approved'?'disabled':''}>Approve</button>
-          <button class="btn btn-danger btn-sm reject-btn" data-sub-id="${sub.id}" ${status==='rejected'?'disabled':''}>Reject</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;max-width:180px;">
+          <button class="btn btn-sm pay-toggle-btn ${paymentStatus==='paid' ? 'btn-ghost' : 'btn-accent'}" data-sub-id="${sub.id}" data-next="${paymentStatus==='paid' ? 'unpaid' : 'paid'}">
+            ${paymentStatus==='paid' ? 'Mark Unpaid' : 'Mark Paid'}
+          </button>
+          <button class="btn btn-success btn-sm applied-btn" data-sub-id="${sub.id}" ${appStatus==='applied'?'disabled':''}>Applied</button>
+          <button class="btn btn-danger btn-sm reject-btn" data-sub-id="${sub.id}">Reject</button>
         </div>
       </td>
     </tr>`;
 }
 
-function statusBadge(status, live){
-  const map = { pending: 'badge-pending', approved: 'badge-approved', rejected: 'badge-rejected' };
-  const cls = map[status] || 'badge-pending';
-  return `<span class="badge ${cls}"><span class="badge-dot ${live?'live':''}"></span>${status}</span>`;
+function paymentBadge(status){
+  return status === 'paid'
+    ? `<span class="badge badge-good"><span class="badge-dot"></span>Paid</span>`
+    : `<span class="badge badge-warn"><span class="badge-dot"></span>Unpaid</span>`;
+}
+function appStatusBadge(status, reason){
+  if (status === 'applied') return `<span class="badge badge-good"><span class="badge-dot live"></span>Applied</span>`;
+  if (status === 'rejected') return `<span class="badge badge-bad" title="${escapeAttr(reason || '')}"><span class="badge-dot live"></span>Rejected</span>`;
+  return `<span class="badge badge-neutral"><span class="badge-dot live"></span>Submitted</span>`;
 }
 
-async function patchStatus(subId, newStatus){
+async function patchSubmission(subId, fields){
   try {
-    await updateDoc(doc(db, 'user_submissions', subId), { status: newStatus, updatedAt: serverTimestamp() });
-    toast(`Marked as ${newStatus}`, 'success');
+    await updateDoc(doc(db, 'user_submissions', subId), { ...fields, updatedAt: serverTimestamp() });
+    toast('Updated', 'success');
   } catch (err){
     toast('Update failed: ' + err.message, 'error');
   }
 }
 
 /* ============================================================
-   CUSTOMER VIEW
+   CUSTOMER VIEW — forms nav (no auto-open) + dynamic form
    ============================================================ */
 let customerDraft = { values: {} };
-let templateLoadedOnce = false;
+let mySubmissionUnsub = null;
+let mySubmission = null;
 let cropperInstance = null;
-let activeCropFieldId = null;
+let lastRenderedTplSignature = null;
 
 function renderCustomerView(){
-  const container = document.getElementById('view-container');
-  container.innerHTML = `<div class="card empty-state">Loading your form…</div>`;
-
-  // Subscribe to which template is active, then to that template's contents.
-  onSnapshot(doc(db, 'settings', 'app'), (settingsSnap) => {
-    const activeId = settingsSnap.exists() ? settingsSnap.data().activeTemplateId : null;
-    if (!activeId){
-      container.innerHTML = `<div class="card empty-state"><h3>No form available yet</h3><p>Please check back soon.</p></div>`;
+  subscribeToTemplates(() => {
+    drawFormsNav();
+    // Don't rebuild an in-progress form just because some other template
+    // changed (e.g. the Admin edited a different form). Only redraw when
+    // there's no form open yet, or the CURRENTLY open form's own data changed.
+    if (!state.customerActiveTemplateId){
+      drawCustomerBody();
       return;
     }
-    onSnapshot(doc(db, 'form_templates', activeId), (tSnap) => {
-      if (!tSnap.exists()) return;
-      const data = tSnap.data();
-      state.template = { id: activeId, name: data.name, description: data.description,
-        fields: (data.fields || []).slice().sort((a,b) => a.order - b.order) };
-      if (!templateLoadedOnce){
-        templateLoadedOnce = true;
-        subscribeToMySubmission();
-        renderDynamicForm();
-      }
-    });
+    const activeTpl = state.templates.find(t => t.id === state.customerActiveTemplateId);
+    const sig = JSON.stringify(activeTpl || null);
+    if (sig !== lastRenderedTplSignature){
+      lastRenderedTplSignature = sig;
+      drawCustomerBody();
+    }
   });
 }
 
-function subscribeToMySubmission(){
-  onSnapshot(doc(db, 'user_submissions', state.user.uid), (snap) => {
-    state.mySubmission = snap.exists() ? snap.data() : null;
-    if (state.mySubmission?.values && Object.keys(customerDraft.values).length === 0){
-      customerDraft.values = { ...state.mySubmission.values };
+function drawFormsNav(){
+  const slot = document.getElementById('forms-nav-slot');
+  if (!slot) return;
+  const published = state.templates.filter(t => t.published);
+  if (!published.length){ slot.innerHTML = ''; return; }
+  slot.innerHTML = `
+    <nav class="forms-nav">
+      ${published.map(t => `
+        <button class="nav-pill ${state.customerActiveTemplateId === t.id ? 'active' : ''}" data-tpl-id="${t.id}">${escapeAttr(t.name)}</button>
+      `).join('')}
+    </nav>`;
+  slot.querySelectorAll('.nav-pill').forEach(btn => btn.addEventListener('click', () => {
+    openCustomerForm(btn.dataset.tplId);
+  }));
+}
+
+function openCustomerForm(templateId){
+  state.customerActiveTemplateId = templateId;
+  customerDraft = { values: {} };
+  const tpl = state.templates.find(t => t.id === templateId);
+  lastRenderedTplSignature = JSON.stringify(tpl || null);
+  drawFormsNav();
+  drawCustomerBody();
+}
+
+function drawCustomerBody(){
+  const container = document.getElementById('view-container');
+  if (!container) return;
+  const published = state.templates.filter(t => t.published);
+
+  if (!state.customerActiveTemplateId){
+    container.innerHTML = `
+      <div class="card">
+        <h2>Available forms</h2>
+        <p style="color:var(--text-muted);font-size:0.9rem;">Choose a form below to fill it out.</p>
+      </div>
+      <div class="card">
+        <div class="grid grid-cards">
+          ${published.length ? published.map(t => `
+            <div class="card form-card" style="margin-top:0;" data-open-id="${t.id}">
+              <h3>${escapeAttr(t.name)}</h3>
+              <p style="color:var(--text-muted);font-size:0.84rem;">${escapeAttr(t.description || '')}</p>
+              <span class="go">Open form →</span>
+            </div>`).join('') : `<div class="empty-state" style="grid-column:1/-1;"><h3>No forms available yet</h3><p>Please check back soon.</p></div>`}
+        </div>
+      </div>`;
+    container.querySelectorAll('[data-open-id]').forEach(card => card.addEventListener('click', () => openCustomerForm(card.dataset.openId)));
+    return;
+  }
+
+  const tpl = state.templates.find(t => t.id === state.customerActiveTemplateId);
+  if (!tpl){ state.customerActiveTemplateId = null; drawCustomerBody(); return; }
+
+  subscribeToMySubmission(tpl.id);
+  renderDynamicForm(tpl);
+}
+
+function subscribeToMySubmission(templateId){
+  if (mySubmissionUnsub) mySubmissionUnsub();
+  const subId = `${state.user.uid}__${templateId}`;
+  mySubmissionUnsub = onSnapshot(doc(db, 'user_submissions', subId), (snap) => {
+    mySubmission = snap.exists() ? snap.data() : null;
+    if (mySubmission?.values && Object.keys(customerDraft.values).length === 0){
+      customerDraft.values = { ...mySubmission.values };
     }
     updateStatusWidget();
   });
@@ -947,86 +1327,213 @@ function subscribeToMySubmission(){
 function updateStatusWidget(){
   const widget = document.getElementById('sync-status-widget');
   if (!widget) return;
-  const status = state.mySubmission?.status;
-  widget.innerHTML = status
-    ? `Live status: ${statusBadgeCustomer(status)}`
-    : `Live status: <span class="badge badge-pending"><span class="badge-dot live"></span>not submitted yet</span>`;
-}
-function statusBadgeCustomer(status){
-  const map = { pending: 'badge-pending', approved: 'badge-approved', rejected: 'badge-rejected' };
-  return `<span class="badge ${map[status] || 'badge-pending'}"><span class="badge-dot live"></span>${status}</span>`;
-}
-
-function renderDynamicForm(){
-  const container = document.getElementById('view-container');
-  const t = state.template;
-
-  container.innerHTML = `
-    <div class="card">
-      <h2 style="margin-bottom:4px;">${escapeAttr(t.name)}</h2>
-      <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:6px;">${escapeAttr(t.description || '')}</p>
-      <div id="sync-status-widget" style="font-size:0.85rem;margin-bottom:6px;"></div>
-    </div>
-    <div class="card">
-      <form id="dyn-form">
-        ${t.fields.map(f => dynFieldHTML(f, customerDraft.values[f.id])).join('')}
-        <button type="submit" class="btn btn-primary" id="submit-form-btn" style="width:100%;margin-top:8px;">
-          ${state.mySubmission ? 'Update submission' : 'Submit'}
-        </button>
-      </form>
-    </div>`;
-
-  updateStatusWidget();
-
-  t.fields.filter(f => f.type === 'text').forEach(f => {
-    const input = document.getElementById(`field-${f.id}`);
-    input.value = customerDraft.values[f.id] || '';
-    input.addEventListener('input', () => { customerDraft.values[f.id] = input.value; });
-  });
-
-  t.fields.filter(f => f.type === 'document').forEach(f => {
-    const fileInput = document.getElementById(`file-${f.id}`);
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) openCropModal(f, file);
-    });
-  });
-
-  document.getElementById('dyn-form').addEventListener('submit', handleSubmitForm);
-}
-
-function dynFieldHTML(f, existingValue){
-  if (f.type === 'text'){
-    return `
-      <div class="field dyn-field">
-        <label>${escapeAttr(f.label)}</label>
-        <input class="input" id="field-${f.id}" placeholder="Enter ${escapeAttr(f.label).toLowerCase()}">
-      </div>`;
+  if (!mySubmission){
+    widget.innerHTML = `<span class="badge badge-neutral"><span class="badge-dot live"></span>Not submitted yet</span>`;
+    return;
   }
-  // Document field: existingValue, when present, is already a Base64 data URL.
-  return `
-    <div class="dyn-field">
-      <label style="font-size:0.82rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px;">${escapeAttr(f.label)}</label>
-      <div class="doc-slot ${existingValue ? 'has-file' : ''}" id="slot-${f.id}">
-        ${existingValue ? `<img class="thumb" src="${existingValue}" alt="">` : `<div class="thumb"></div>`}
-        <div style="flex:1;min-width:160px;">
-          <div class="doc-meta">
-            Free crop · Max ${f.maxSizeKB}KB · .${f.outputFormat}
-          </div>
-          <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="document.getElementById('file-${f.id}').click()">
-            ${existingValue ? 'Replace file' : 'Choose file'}
-          </button>
-        </div>
-        <input type="file" id="file-${f.id}" accept="image/*" class="hidden">
-      </div>
+  const pay = mySubmission.paymentStatus || 'unpaid';
+  const appStatus = mySubmission.applicationStatus || 'submitted';
+  let banner = '';
+  if (appStatus === 'rejected'){
+    banner = `<div class="status-banner bad">⚠️ There's a problem with your submission: ${escapeAttr(mySubmission.rejectionReason || 'please contact support.')}</div>`;
+  } else if (appStatus === 'applied'){
+    banner = `<div class="status-banner good">✅ Your application has been submitted to the authority.</div>`;
+  }
+  widget.innerHTML = `
+    ${banner}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      ${paymentBadge(pay)}
+      ${appStatusBadge(appStatus, mySubmission.rejectionReason)}
     </div>`;
 }
 
 /* ------------------------------------------------------------
-   CROP MODAL (Cropper.js) + CANVAS COMPRESSION PIPELINE
+   DYNAMIC FORM RENDERING
    ------------------------------------------------------------ */
+function renderDynamicForm(tpl){
+  const container = document.getElementById('view-container');
+  container.innerHTML = `
+    <div class="card">
+      <button class="btn btn-ghost btn-sm" id="back-to-forms-btn" style="margin-bottom:10px;">← All forms</button>
+      <h2 style="margin-bottom:4px;">${escapeAttr(tpl.name)}</h2>
+      <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:8px;">${escapeAttr(tpl.description || '')}</p>
+      <div id="sync-status-widget" style="font-size:0.85rem;"></div>
+    </div>
+    <div class="card">
+      <form id="dyn-form" novalidate>
+        ${tpl.fields.map(f => dynFieldHTML(f, customerDraft.values[f.id])).join('')}
+        <button type="submit" class="btn btn-primary" id="submit-form-btn" style="width:100%;margin-top:8px;">
+          ${mySubmission ? 'Update submission' : 'Submit'}
+        </button>
+      </form>
+    </div>`;
+
+  document.getElementById('back-to-forms-btn').addEventListener('click', () => {
+    state.customerActiveTemplateId = null;
+    if (mySubmissionUnsub) { mySubmissionUnsub(); mySubmissionUnsub = null; }
+    mySubmission = null;
+    drawFormsNav();
+    drawCustomerBody();
+  });
+
+  updateStatusWidget();
+  wireDynamicFormInputs(tpl);
+  document.getElementById('dyn-form').addEventListener('submit', (e) => handleSubmitForm(e, tpl));
+}
+
+function dynFieldHTML(f, existingRaw){
+  const req = `<span class="req">*</span>`;
+  if (f.type === 'text' && f.preset === 'fullname'){
+    let parts = {}; try { parts = JSON.parse(existingRaw || '{}'); } catch {}
+    return `
+      <div class="field dyn-field" data-field-id="${f.id}">
+        <label>${escapeAttr(f.label)} ${req}</label>
+        <div class="name-parts">
+          <input class="input" data-name-part="first" placeholder="First name*" value="${escapeAttr(parts.first||'')}">
+          <input class="input" data-name-part="middle" placeholder="Middle name" value="${escapeAttr(parts.middle||'')}">
+          <input class="input" data-name-part="last" placeholder="Last name*" value="${escapeAttr(parts.last||'')}">
+        </div>
+        <div class="error-text" id="err-${f.id}"></div>
+      </div>`;
+  }
+  if (f.type === 'text'){
+    const display = (f.preset === 'phone' || f.preset === 'aadhaar') ? formatForDisplay(f.preset, existingRaw) : (existingRaw || '');
+    const inputMode = (f.preset === 'phone' || f.preset === 'aadhaar') ? 'numeric' : (f.preset === 'email' ? 'email' : 'text');
+    return `
+      <div class="field dyn-field" data-field-id="${f.id}">
+        <label>${escapeAttr(f.label)} ${req}</label>
+        <input class="input wide" id="field-${f.id}" inputmode="${inputMode}" value="${escapeAttr(display)}" placeholder="Enter ${escapeAttr(f.label).toLowerCase()}">
+        <div class="error-text" id="err-${f.id}"></div>
+      </div>`;
+  }
+  if (f.type === 'select'){
+    const opts = f.options || [];
+    return `
+      <div class="field dyn-field" data-field-id="${f.id}">
+        <label>${escapeAttr(f.label)} ${req}</label>
+        <select id="field-${f.id}" class="wide">
+          <option value="" ${!existingRaw ? 'selected' : ''} disabled>Choose one…</option>
+          ${opts.map(o => `<option value="${escapeAttr(o.value)}" ${existingRaw===o.value?'selected':''}>${escapeAttr(o.label)}</option>`).join('')}
+        </select>
+        <div class="error-text" id="err-${f.id}"></div>
+      </div>`;
+  }
+  // document field
+  const specNote = f.acceptType === 'pdf'
+    ? `PDF · Max ${f.maxSizeKB}KB`
+    : (f.targetWidthPx && f.targetHeightPx ? `Exact ${f.targetWidthPx}×${f.targetHeightPx}px · Max ${f.maxSizeKB}KB · .${f.outputFormat}` : `Free crop · Max ${f.maxSizeKB}KB · .${f.outputFormat}`);
+  const isImage = f.acceptType !== 'pdf';
+  let thumbHTML = `<div class="thumb"></div>`;
+  let readyNote = '';
+  if (existingRaw){
+    if (isImage){ thumbHTML = `<img class="thumb" src="${existingRaw}" alt="">`; }
+    else { thumbHTML = `<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.6rem;">📄</div>`; }
+    readyNote = `<br><span style="color:var(--success);">On file ✓</span>`;
+  }
+  return `
+    <div class="dyn-field" data-field-id="${f.id}">
+      <label style="font-size:0.82rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px;" id="label-${f.id}">${escapeAttr(f.label)} ${req}</label>
+      <div class="doc-slot ${existingRaw ? 'has-file' : ''}" id="slot-${f.id}">
+        ${thumbHTML}
+        <div style="flex:1;min-width:160px;">
+          <div class="doc-meta" id="meta-${f.id}">${specNote}${readyNote}</div>
+          <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="document.getElementById('file-${f.id}').click()">
+            ${existingRaw ? 'Replace file' : 'Choose file'}
+          </button>
+        </div>
+        <input type="file" id="file-${f.id}" accept="${isImage ? 'image/*' : '.pdf,application/pdf'}" class="hidden">
+      </div>
+      <div class="error-text" id="err-${f.id}"></div>
+    </div>`;
+}
+
+function wireDynamicFormInputs(tpl){
+  tpl.fields.forEach(f => {
+    if (f.type === 'text' && f.preset === 'fullname'){
+      const row = document.querySelector(`[data-field-id="${f.id}"]`);
+      const update = () => {
+        const first = row.querySelector('[data-name-part="first"]').value.trim();
+        const middle = row.querySelector('[data-name-part="middle"]').value.trim();
+        const last = row.querySelector('[data-name-part="last"]').value.trim();
+        customerDraft.values[f.id] = JSON.stringify({ first, middle, last });
+      };
+      row.querySelectorAll('input').forEach(inp => inp.addEventListener('input', update));
+      update();
+    } else if (f.type === 'text'){
+      const input = document.getElementById(`field-${f.id}`);
+      if (f.preset === 'phone' || f.preset === 'aadhaar'){
+        input.addEventListener('input', () => {
+          const raw = rawDigits(input.value).slice(0, f.preset === 'phone' ? 10 : 12);
+          input.value = formatForDisplay(f.preset, raw);
+          customerDraft.values[f.id] = raw;
+        });
+      } else {
+        input.addEventListener('input', () => { customerDraft.values[f.id] = input.value; });
+      }
+    } else if (f.type === 'select'){
+      const select = document.getElementById(`field-${f.id}`);
+      select.addEventListener('change', () => {
+        customerDraft.values[f.id] = select.value;
+        // Update any document field whose label depends on this choice field (PAN "Application Type").
+        tpl.fields.filter(other => other.conditionalOn === f.id).forEach(other => {
+          const labelEl = document.getElementById(`label-${other.id}`);
+          const metaEl = document.getElementById(`meta-${other.id}`);
+          const newLabel = other.conditionalLabels?.[select.value];
+          if (labelEl && newLabel) labelEl.innerHTML = `${escapeAttr(newLabel)} <span class="req">*</span>`;
+        });
+      });
+    } else if (f.type === 'document'){
+      const fileInput = document.getElementById(`file-${f.id}`);
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) handleFileSelected(f, file);
+      });
+    }
+  });
+}
+
+/* ------------------------------------------------------------
+   FILE HANDLING: images go through the crop modal; PDFs are
+   validated and read directly as Base64 (no cropping applies).
+   ------------------------------------------------------------ */
+function handleFileSelected(field, file){
+  if (field.acceptType === 'pdf'){
+    handlePdfSelected(field, file);
+  } else {
+    openCropModal(field, file);
+  }
+}
+
+async function handlePdfSelected(field, file){
+  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')){
+    toast('Please choose a PDF file.', 'error');
+    return;
+  }
+  if (file.size > field.maxSizeKB * 1024){
+    toast(`This PDF is too large. Please keep it under ${field.maxSizeKB}KB.`, 'error');
+    return;
+  }
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  customerDraft.values[field.id] = dataUrl;
+  const slot = document.getElementById(`slot-${field.id}`);
+  if (slot){
+    slot.classList.add('has-file');
+    const thumb = slot.querySelector('.thumb');
+    thumb.style.display = 'flex'; thumb.style.alignItems = 'center'; thumb.style.justifyContent = 'center';
+    thumb.style.fontSize = '1.6rem'; thumb.textContent = '📄';
+    const meta = document.getElementById(`meta-${field.id}`);
+    meta.innerHTML += `<br><span style="color:var(--success);">Ready — ${(file.size/1024).toFixed(0)}KB</span>`;
+  }
+  clearFieldError(field.id);
+  toast('Document attached', 'success');
+}
+
 function openCropModal(field, file){
-  activeCropFieldId = field.id;
   const reader = new FileReader();
   reader.onload = (e) => {
     const overlay = document.createElement('div');
@@ -1044,15 +1551,17 @@ function openCropModal(field, file){
     document.body.appendChild(overlay);
 
     const img = document.getElementById('crop-img');
-    // Free-style cropping: no fixed aspectRatio, so the user can freely drag
-    // every edge/corner of the crop box to fit any document shape or size.
+    // Locked-spec fields (PAN photo/signature) get a fixed aspect ratio matching
+    // their exact required output size, so the crop can never distort/stretch
+    // the final image. Generic custom document fields stay free-style.
+    const lockedAspect = (field.targetWidthPx && field.targetHeightPx) ? (field.targetWidthPx / field.targetHeightPx) : NaN;
     cropperInstance = new Cropper(img, {
-      aspectRatio: NaN,
+      aspectRatio: lockedAspect,
       viewMode: 1,
       autoCropArea: 0.9,
       background: false,
       dragMode: 'move',
-      cropBoxResizable: true,
+      cropBoxResizable: isNaN(lockedAspect),
       cropBoxMovable: true
     });
 
@@ -1073,10 +1582,17 @@ async function confirmCrop(field){
   confirmBtn.disabled = true;
   confirmBtn.innerHTML = `<span class="spinner"></span> Processing…`;
 
-  const rawCanvas = cropperInstance.getCroppedCanvas({
-    width: field.targetWidth || undefined,
-    imageSmoothingQuality: 'high'
-  });
+  // When the field has an exact required pixel size (PAN photo/signature),
+  // request that EXACT width+height from Cropper — since the crop box was
+  // already locked to the same aspect ratio, this resizes without stretching.
+  const cropOptions = { imageSmoothingQuality: 'high' };
+  if (field.targetWidthPx && field.targetHeightPx){
+    cropOptions.width = field.targetWidthPx;
+    cropOptions.height = field.targetHeightPx;
+  } else if (field.targetWidthPx){
+    cropOptions.width = field.targetWidthPx;
+  }
+  const rawCanvas = cropperInstance.getCroppedCanvas(cropOptions);
   const mimeType = field.outputFormat === 'png' ? 'image/png' : 'image/jpeg';
 
   const dataUrl = await compressCanvasToDataURL(rawCanvas, mimeType, field.maxSizeKB);
@@ -1087,11 +1603,8 @@ async function confirmCrop(field){
     return;
   }
 
-  // Store the finished Base64 string directly — this IS what gets saved to
-  // Firestore, no separate upload step needed.
   customerDraft.values[field.id] = dataUrl;
 
-  // Update the slot UI in place
   const slot = document.getElementById(`slot-${field.id}`);
   if (slot){
     slot.classList.add('has-file');
@@ -1104,11 +1617,11 @@ async function confirmCrop(field){
     } else {
       thumb.src = dataUrl;
     }
-    const meta = slot.querySelector('.doc-meta');
-    const sizeKB = Math.round((dataUrl.length * 0.75) / 1024); // approx decoded size
-    meta.innerHTML = `Free crop · Max ${field.maxSizeKB}KB · .${field.outputFormat}<br><span style="color:var(--success);">Ready — ~${sizeKB}KB</span>`;
+    const meta = document.getElementById(`meta-${field.id}`);
+    const sizeKB = Math.round((dataUrl.length * 0.75) / 1024);
+    meta.innerHTML = meta.innerHTML.split('<br>')[0] + `<br><span style="color:var(--success);">Ready — ~${sizeKB}KB</span>`;
   }
-
+  clearFieldError(field.id);
   closeCropModal();
   toast('Image processed and ready to submit', 'success');
 }
@@ -1116,9 +1629,9 @@ async function confirmCrop(field){
 /**
  * Iteratively compresses a canvas's image data, as a Base64 data URL, until
  * it fits under maxSizeKB. JPEG: reduce quality in steps. PNG: quality has
- * no effect (lossless), so progressively downscale dimensions instead.
- * The size budget is checked against the data URL's own text length, since
- * that's exactly what will be stored as a string inside the Firestore doc.
+ * no effect (lossless), so progressively downscale instead — but locked
+ * (exact-dimension) fields never downscale past their required size, so
+ * for those we cap PNG quality loops and just accept the closest fit.
  */
 async function compressCanvasToDataURL(sourceCanvas, mimeType, maxSizeKB){
   const maxChars = maxSizeKB * 1024;
@@ -1126,15 +1639,13 @@ async function compressCanvasToDataURL(sourceCanvas, mimeType, maxSizeKB){
 
   if (mimeType === 'image/jpeg'){
     let quality = 0.92;
-    for (let i = 0; i < 10; i++){
+    for (let i = 0; i < 12; i++){
       const dataUrl = canvas.toDataURL(mimeType, quality);
-      if (dataUrl.length <= maxChars || quality <= 0.12) return dataUrl;
-      quality -= 0.1;
+      if (dataUrl.length <= maxChars || quality <= 0.1) return dataUrl;
+      quality -= 0.08;
     }
     return canvas.toDataURL(mimeType, 0.1);
   }
-
-  // PNG path: downscale up to 6 times if still oversized.
   let scale = 1;
   for (let i = 0; i < 6; i++){
     const dataUrl = canvas.toDataURL(mimeType);
@@ -1156,35 +1667,58 @@ function scaleCanvas(sourceCanvas, scale){
 }
 
 /* ------------------------------------------------------------
-   SUBMIT: write everything — text answers AND Base64 file strings —
-   directly into one Firestore document. No Storage, no uploads.
+   VALIDATION + SUBMIT
    ------------------------------------------------------------ */
-async function handleSubmitForm(e){
+function clearFieldError(fieldId){
+  const err = document.getElementById(`err-${fieldId}`);
+  if (err) err.textContent = '';
+}
+
+function showFieldError(fieldId, message){
+  const err = document.getElementById(`err-${fieldId}`);
+  if (err) err.textContent = message;
+}
+
+async function handleSubmitForm(e, tpl){
   e.preventDefault();
+
+  let firstInvalidId = null;
+  tpl.fields.forEach(f => {
+    const raw = customerDraft.values[f.id];
+    const err = validateField(f, raw);
+    showFieldError(f.id, err || '');
+    if (err && !firstInvalidId) firstInvalidId = f.id;
+  });
+
+  if (firstInvalidId){
+    toast('Please fix the highlighted fields before submitting.', 'error');
+    const el = document.querySelector(`[data-field-id="${firstInvalidId}"]`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
   const btn = document.getElementById('submit-form-btn');
   btn.disabled = true;
   const originalLabel = btn.textContent;
   btn.innerHTML = `<span class="spinner"></span> Saving…`;
 
   try {
-    const uidStr = state.user.uid;
-
-    // Rough guard against Firestore's 1MiB-per-document ceiling before we
-    // even attempt the write, so the user gets a clear message instead of
-    // a cryptic Firestore error.
     const approxDocBytes = JSON.stringify(customerDraft.values).length;
     if (approxDocBytes > 950000){
-      toast('This submission is too large overall — lower a Max KB setting or ask the admin to.', 'error');
+      toast('This submission is too large overall — a document may need a smaller Max KB setting.', 'error');
       return;
     }
 
-    await setDoc(doc(db, 'user_submissions', uidStr), {
-      uid: uidStr,
+    const subId = `${state.user.uid}__${tpl.id}`;
+    await setDoc(doc(db, 'user_submissions', subId), {
+      uid: state.user.uid,
       email: state.user.email,
-      templateId: state.template.id,
+      templateId: tpl.id,
       values: customerDraft.values,
-      status: 'pending',
-      createdAt: state.mySubmission?.createdAt || serverTimestamp(),
+      paymentStatus: mySubmission?.paymentStatus || 'unpaid',
+      applicationStatus: mySubmission?.applicationStatus || 'submitted',
+      rejectionReason: mySubmission?.applicationStatus === 'rejected' ? (mySubmission.rejectionReason || null) : null,
+      createdAt: mySubmission?.createdAt || serverTimestamp(),
       updatedAt: serverTimestamp()
     }, { merge: true });
 
@@ -1203,10 +1737,17 @@ async function handleSubmitForm(e){
 initTheme();
 
 onAuthStateChanged(auth, (user) => {
-  // Reset per-session state on every auth change.
-  templateLoadedOnce = false;
+  state.customerActiveTemplateId = null;
+  state.adminTab = 'home';
+  state.editingTemplateId = null;
+  state.feedTemplateId = null;
+  builderLoaded = false;
   customerDraft = { values: {} };
+  mySubmission = null;
+  lastRenderedTplSignature = null;
   if (feedUnsub){ feedUnsub(); feedUnsub = null; }
+  if (mySubmissionUnsub){ mySubmissionUnsub(); mySubmissionUnsub = null; }
+  if (templatesUnsub){ templatesUnsub(); templatesUnsub = null; }
 
   state.user = user;
   state.isAdmin = !!user && (user.uid === ADMIN_UID || user.email === ADMIN_EMAIL);

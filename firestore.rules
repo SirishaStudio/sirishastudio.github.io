@@ -1,16 +1,15 @@
 rules_version = '2';
 
 // ============================================================
-// FIRESTORE SECURITY RULES
+// FIRESTORE SECURITY RULES — Sirisha Studio
 //
-// This app runs entirely on the free Spark plan — there is no Cloud
-// Storage bucket and no storage.rules file. Every file (photo, signature,
-// proof) is compressed client-side and stored as a Base64 string inside
-// the `values` map of the submission document itself.
+// Free Spark plan only — no Cloud Storage. Every uploaded file (photo,
+// signature, PDF) is compressed client-side and stored as a Base64 string
+// inside the submission document itself. Keep each field's "Max size (KB)"
+// modest in the Form Builder — Firestore caps a document at 1MiB total.
 //
-// Firestore caps each document at 1MiB total, so keep each field's
-// "Max file size (KB)" small in the Form Builder (the app already
-// warns you, and does a client-side size check before writing).
+// Submission documents are keyed as "{uid}__{templateId}", so one user can
+// have one submission per form/template.
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -19,41 +18,38 @@ service cloud.firestore {
       return request.auth != null;
     }
     function isAdmin() {
-      return isSignedIn() && request.auth.uid == "5R2061iDtwUIfXp1aacA378fhza2";
+      return isSignedIn() &&
+        (request.auth.uid == "5R2061iDtwUIfXp1aacA378fhza2" ||
+         request.auth.token.email == "sirishastudio9@gmail.com");
     }
-    function isOwner(uid) {
-      return isSignedIn() && request.auth.uid == uid;
+    function ownerOf(subId) {
+      return subId.split('__')[0];
+    }
+    function isOwner(subId) {
+      return isSignedIn() && request.auth.uid == ownerOf(subId);
     }
 
-    // Form templates: any signed-in user can read (needed to render the
-    // dynamic form), but only the Admin can create/edit/delete them.
+    // Form templates: the Admin can read/write everything. Regular users
+    // may only read templates that have been published — drafts stay
+    // invisible even if someone guesses a template ID.
     match /form_templates/{templateId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin() || (isSignedIn() && resource.data.published == true);
       allow write: if isAdmin();
     }
 
-    // App-wide settings (e.g. which template is currently active).
-    match /settings/{docId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // Submissions: a customer can only read/create/update their OWN
-    // submission document (its ID is their own uid). The Admin can
-    // read and update (e.g. approve/reject) every submission.
-    // `values` holds both plain text answers AND Base64 image strings
-    // for document fields, all in one ordered map keyed by field id.
-    match /user_submissions/{ownerUid} {
-      // Note: Firestore rules can't directly measure a document's total
-      // serialized byte size, so the 1MiB ceiling is enforced client-side
-      // (see the check in handleSubmitForm() in index.html) rather than here.
-      allow read: if isOwner(ownerUid) || isAdmin();
-      allow create: if isOwner(ownerUid);
-      // Customers may keep editing their own submission's answers/files,
-      // but only the Admin may flip `status` between pending/approved/rejected.
+    // Submissions: doc ID is "{ownerUid}__{templateId}".
+    // - The owning customer can read/create their own submission, and can
+    //   keep editing their own answers — but NOT their payment/application
+    //   status or rejection reason (those are Admin-only fields).
+    // - The Admin can read, update, and delete every submission.
+    match /user_submissions/{subId} {
+      allow read: if isOwner(subId) || isAdmin();
+      allow create: if isOwner(subId) && request.resource.data.uid == request.auth.uid;
       allow update: if isAdmin() ||
-        (isOwner(ownerUid) &&
-         request.resource.data.status == resource.data.status);
+        (isOwner(subId) &&
+         request.resource.data.paymentStatus == resource.data.paymentStatus &&
+         request.resource.data.applicationStatus == resource.data.applicationStatus &&
+         request.resource.data.rejectionReason == resource.data.rejectionReason);
       allow delete: if isAdmin();
     }
   }
